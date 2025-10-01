@@ -38,14 +38,13 @@ export default function LoginPage() {
     setIsLoading(false);
 
     if (result.error) {
-      // Se c'è un errore, NextAuth lo mette in result.error
       setError(result.error);
     } else if (result.ok) {
       // Se il login ha successo, reindirizziamo
       if (entityType === "gym") {
-        router.push("/dashboard/gym");
+        router.push("/gym/dashboard");
       } else {
-        router.push("/dashboard/user"); // O un'altra pagina per gli utenti
+        router.push("/user/dashboard"); // O un'altra pagina per gli utenti
       }
     }
   };

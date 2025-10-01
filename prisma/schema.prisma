@@ -33,6 +33,13 @@ enum MembershipStatus {
   EXPIRED
 }
 
+enum DurationUnit {
+  DAY
+  WEEK
+  MONTH
+  YEAR
+}
+
 // Modello per le Palestre
 model Gym {
   id                  String            @id @default(cuid())
@@ -74,15 +81,17 @@ model SubscriptionType {
   id                  String            @id @default(cuid())
   name                String
   description         String?
+  price               Decimal
+  durationValue       Int
+  durationUnit        DurationUnit  
   gymId               String
   isActive            Boolean           @default(true)
-
 
   // Relazioni
   gym                 Gym               @relation(fields: [gymId], references: [id], onDelete: Cascade)
   memberships         GymMembership[]
 
-  @@unique([name, gymId])
+  @@unique([name, durationValue, durationUnit, gymId])
 }
 
 // Collegamento per la relazione Molti-a-Molti tra Gym e User
@@ -101,7 +110,7 @@ model GymMembership {
   // Relazioni
   gym                 Gym               @relation(fields: [gymId], references: [id], onDelete: Cascade)
   user                User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  subscriptionType    SubscriptionType  @relation(fields: [subscriptionTypeId], references: [id])
+  subscriptionType    SubscriptionType  @relation(fields: [subscriptionTypeId], references: [id], onUpdate: NoAction, onDelete: Restrict)
 
   @@unique([userId, gymId])
 }

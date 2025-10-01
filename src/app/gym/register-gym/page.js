@@ -62,7 +62,9 @@ export default function RegisterGymPage() {
     }
   };
 
-  const debouncedSearch = useCallback(debounce(searchAddress, 500), []);
+  const debouncedSearch = useCallback(debounce(searchAddress, 500), [
+    searchAddress,
+  ]);
 
   const handleChange = (e) => {
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
