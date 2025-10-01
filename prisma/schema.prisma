@@ -1,0 +1,129 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  TRAINER
+  CLIENT
+}
+
+enum GymStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum MembershipStatus {
+  PENDING_SETUP
+  ACTIVE
+  INACTIVE
+  EXPIRED
+}
+
+// Modello per le Palestre
+model Gym {
+  id                  String            @id @default(cuid())
+  name                String
+  email               String            @unique
+  hashedPassword      String
+  phoneNumber         String
+  address             String
+  latitude            Float?
+  longitude           Float?
+  status              GymStatus         @default(PENDING)
+  emailVerified       Boolean           @default(false)
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  // Relazioni
+  memberships         GymMembership[]
+  subscriptionTypes   SubscriptionType[]
+  verificationToken   GymVerificationToken?
+}
+
+// Modello per gli Utenti (Admin, Clienti e Trainer)
+model User {
+  id                  String            @id @default(cuid())
+  firstName           String
+  lastName            String
+  email               String            @unique
+  hashedPassword      String?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  // Relazioni
+  memberships         GymMembership[]
+  onboardingTokens    OnboardingToken[]
+}
+
+// Modello per i Tipi di Abbonamento (specifici per ogni palestra)
+model SubscriptionType {
+  id                  String            @id @default(cuid())
+  name                String
+  description         String?
+  gymId               String
+  isActive            Boolean           @default(true)
+
+
+  // Relazioni
+  gym                 Gym               @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  memberships         GymMembership[]
+
+  @@unique([name, gymId])
+}
+
+// Collegamento per la relazione Molti-a-Molti tra Gym e User
+model GymMembership {
+  id                  String            @id @default(cuid())
+  gymId               String
+  userId              String
+  subscriptionTypeId  String
+  startDate           DateTime          @default(now())
+  endDate             DateTime?
+  status              MembershipStatus  @default(PENDING_SETUP)
+  role                UserRole          @default(CLIENT)
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  // Relazioni
+  gym                 Gym               @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  user                User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subscriptionType    SubscriptionType  @relation(fields: [subscriptionTypeId], references: [id])
+
+  @@unique([userId, gymId])
+}
+
+// Modello per i token di primo accesso/onboarding
+model OnboardingToken {
+  id                  String            @id @default(cuid())
+  token               String            @unique
+  expires             DateTime
+  userId              String            @unique
+  
+  // Relazione
+  user                User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Modello per i token di verifica email delle palestre
+model GymVerificationToken {
+  id                  String            @id @default(cuid())
+  token               String            @unique
+  expires             DateTime
+  gymId               String            @unique
+  
+  // Relazione
+  gym                 Gym               @relation(fields: [gymId], references: [id], onDelete: Cascade)
+}
