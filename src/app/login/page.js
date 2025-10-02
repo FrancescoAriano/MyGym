@@ -113,7 +113,7 @@ export default function LoginPage() {
           <p className="mt-4 text-sm text-center text-red-600">{error}</p>
         )}
         <p className="text-sm text-center text-gray-600">
-          Don't have a gym account?{" "}
+          Don&apos;t have a gym account?{" "}
           <a
             href="/gym/register-gym"
             className="font-medium text-indigo-600 hover:text-indigo-500"
