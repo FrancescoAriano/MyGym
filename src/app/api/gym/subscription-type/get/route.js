@@ -1,6 +1,4 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import prisma from "@/lib/prisma";
 
 export async function GET(request) {
@@ -13,16 +11,11 @@ export async function GET(request) {
       status: 400,
     });
   }
-
   try {
-    // 2. Fetch all subscription types for this gym
+    // 2. Fetch active subscription types for the specified gym
     const subscriptionTypes = await prisma.subscriptionType.findMany({
       where: { gymId: gymId, isActive: true },
-      orderBy: [
-        { name: "asc" },
-        { durationValue: "asc" },
-        { durationUnit: "asc" },
-      ],
+      orderBy: [{ name: "asc" }, { durationValue: "asc" }, { price: "asc" }],
       select: {
         id: true,
         name: true,
@@ -32,10 +25,9 @@ export async function GET(request) {
         durationUnit: true,
       },
     });
-
-    return NextResponse.json(subscriptionTypes, { status: 200 });
+    return NextResponse.json(subscriptionTypes);
   } catch (error) {
-    console.error("GET_SUBSCRIPTION_TYPES_ERROR", error);
+    console.error("PUBLIC_GET_SUBSCRIPTIONS_ERROR", error);
     return new NextResponse("Internal Server Error", { status: 500 });
   }
 }

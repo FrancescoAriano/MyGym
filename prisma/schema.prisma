@@ -37,7 +37,6 @@ enum DurationUnit {
   DAY
   WEEK
   MONTH
-  YEAR
 }
 
 // Modello per le Palestre
@@ -91,7 +90,7 @@ model SubscriptionType {
   gym                 Gym               @relation(fields: [gymId], references: [id], onDelete: Cascade)
   memberships         GymMembership[]
 
-  @@unique([name, durationValue, durationUnit, gymId])
+  @@unique([name, durationValue, durationUnit, price, gymId])
 }
 
 // Collegamento per la relazione Molti-a-Molti tra Gym e User
