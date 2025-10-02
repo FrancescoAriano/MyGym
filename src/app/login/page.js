@@ -42,7 +42,7 @@ export default function LoginPage() {
     } else if (result.ok) {
       // Se il login ha successo, reindirizziamo
       if (entityType === "gym") {
-        router.push("/gym/dashboard");
+        router.push("/gym/dashboard/home");
       } else {
         router.push("/user/dashboard"); // O un'altra pagina per gli utenti
       }
