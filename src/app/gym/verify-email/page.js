@@ -1,120 +1,63 @@
 // app/verify-email/page.js
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useState, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import {
+  VerificationStatus,
+  ResendVerificationForm,
+  VerificationSkeleton,
+} from "@/components/auth";
+import { Button } from "@/components/ui/Button";
 
 function VerificationComponent() {
   const searchParams = useSearchParams();
-  const router = useRouter();
   const token = searchParams.get("token");
+  const [currentStatus, setCurrentStatus] = useState(null);
+  const [resendMessage, setResendMessage] = useState("");
 
-  const [status, setStatus] = useState("verifying"); // 'verifying', 'success', 'expired', 'error'
-  const [message, setMessage] = useState("Verifying your email address...");
-  const [emailForResend, setEmailForResend] = useState("");
-
-  useEffect(() => {
-    if (!token) {
-      setStatus("error");
-      setMessage("No verification token found in the link.");
-      return;
-    }
-
-    const verifyToken = async () => {
-      try {
-        const response = await fetch("/api/auth/gym/verify-email", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ token }),
-        });
-
-        const responseText = await response.text();
-
-        if (response.ok) {
-          setStatus("success");
-          setMessage(responseText);
-        } else if (response.status === 400 || response.status === 410) {
-          setStatus("expired");
-          setMessage(responseText);
-        } else {
-          throw new Error(responseText);
-        }
-      } catch (err) {
-        setStatus("error");
-        setMessage(err.message || "An unexpected error occurred.");
-      }
-    };
-
-    verifyToken();
-  }, [token]);
-
-  const handleResend = async () => {
-    if (!emailForResend) {
-      setMessage("Please enter your email address to resend the link.");
-      return;
-    }
-    setStatus("verifying"); // Show loading state
-    setMessage("Sending a new link...");
+  const handleResend = async (email) => {
+    setResendMessage("Sending a new link...");
     try {
       const response = await fetch("/api/auth/gym/resend-verification", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: emailForResend }),
+        body: JSON.stringify({ email }),
       });
       const responseText = await response.text();
       if (!response.ok) throw new Error(responseText);
 
-      setStatus("success");
-      setMessage(responseText);
+      setResendMessage(responseText);
+      setCurrentStatus({ status: "success", message: responseText });
     } catch (err) {
-      setStatus("error");
-      setMessage(err.message || "Failed to resend the link.");
+      setResendMessage(err.message || "Failed to resend the link.");
+      setCurrentStatus({
+        status: "error",
+        message: err.message || "Failed to resend the link.",
+      });
     }
   };
 
   return (
-    <div className="text-center">
-      {status === "verifying" && (
-        <h2 className="text-2xl font-bold text-gray-900">Verifying...</h2>
-      )}
-      {status === "success" && (
-        <h2 className="text-2xl font-bold text-green-600">Success!</h2>
-      )}
-      {status === "expired" && (
-        <h2 className="text-2xl font-bold text-yellow-600">Link Expired</h2>
-      )}
-      {status === "error" && (
-        <h2 className="text-2xl font-bold text-red-600">Error</h2>
-      )}
+    <div className="space-y-6">
+      <VerificationStatus token={token} onStatusChange={setCurrentStatus} />
 
-      <p className="mt-4 text-gray-600">{message}</p>
-
-      {status === "success" && (
-        <Link
-          href="/login"
-          className="inline-block px-6 py-2 mt-6 font-semibold text-white bg-indigo-600 rounded-md hover:bg-indigo-700"
-        >
-          Go to Login
+      {currentStatus?.status === "success" && (
+        <Link href="/login" className="block">
+          <Button className="w-full" size="lg">
+            Go to Login
+          </Button>
         </Link>
       )}
 
-      {status === "expired" && (
-        <div className="mt-6 space-y-4">
-          <p>Please enter your email to receive a new verification link.</p>
-          <input
-            type="email"
-            value={emailForResend}
-            onChange={(e) => setEmailForResend(e.target.value)}
-            placeholder="Enter your gym's registration email"
-            className="w-full max-w-xs px-4 py-2 mx-auto text-gray-900 bg-gray-200 border border-gray-300 rounded-md"
-          />
-          <button
-            onClick={handleResend}
-            className="px-6 py-2 font-semibold text-white bg-indigo-600 rounded-md hover:bg-indigo-700"
-          >
-            Resend Link
-          </button>
+      {currentStatus?.status === "expired" && !resendMessage && (
+        <ResendVerificationForm onResend={handleResend} />
+      )}
+
+      {resendMessage && (
+        <div className="text-center text-sm text-muted-foreground">
+          {resendMessage}
         </div>
       )}
     </div>
@@ -123,9 +66,9 @@ function VerificationComponent() {
 
 export default function VerifyEmailPage() {
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-100">
-      <div className="w-full max-w-md p-8 bg-white rounded-lg shadow-md">
-        <Suspense fallback={<div>Loading...</div>}>
+    <div className="flex items-center justify-center min-h-screen bg-background">
+      <div className="w-full max-w-md p-8 bg-card rounded-2xl shadow-xl border border-border">
+        <Suspense fallback={<VerificationSkeleton />}>
           <VerificationComponent />
         </Suspense>
       </div>

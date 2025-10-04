@@ -62,7 +62,7 @@ async function sendEmail(options) {
 }
 
 export const sendGymVerificationEmail = async (to, token) => {
-  const verificationUrl = `${process.env.NEXTAUTH_URL}/verify-email?token=${token}`;
+  const verificationUrl = `${process.env.NEXTAUTH_URL}/gym/verify-email?token=${token}`;
   return sendEmail({
     to,
     subject: "[MyGym] Verify Your Email Address",
@@ -82,7 +82,7 @@ export const sendGymVerificationEmail = async (to, token) => {
 };
 
 export const sendOnboardingEmail = async (to, token) => {
-  const onboardingUrl = `${process.env.NEXTAUTH_URL}/set-password?token=${token}`;
+  const onboardingUrl = `${process.env.NEXTAUTH_URL}/user/set-password?token=${token}`;
   return sendEmail({
     to,
     subject: "Welcome to MyGym! Set up your account",

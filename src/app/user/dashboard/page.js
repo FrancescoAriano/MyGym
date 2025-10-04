@@ -1,13 +1,36 @@
-// app/dashboard/user/page.js
+// app/user/dashboard/page.js
 "use client";
 
-import { useSession, signOut } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import {
+  UserNavbar,
+  MembershipStatusCard,
+  WorkoutPlanCard,
+} from "@/components/user";
+import {
+  WeightEntryForm,
+  WeightStatsCard,
+  WeightChart,
+  WeightHistoryTable,
+} from "@/components/weight";
+import { UserDashboardSkeleton } from "@/components/ui";
+import { Button } from "@/components/ui/Button";
+import { useWeightData } from "@/hooks/useWeightData";
+import { HiChartBar, HiScale } from "react-icons/hi2";
 
 export default function UserDashboardPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const [activeTab, setActiveTab] = useState("overview");
+
+  // Weight data hook
+  const {
+    weightEntries,
+    isLoading: weightLoading,
+    refetch: refetchWeight,
+  } = useWeightData(session?.user?.id);
 
   // Protezione della route
   useEffect(() => {
@@ -18,42 +41,75 @@ export default function UserDashboardPage() {
   }, [session, status, router]);
 
   if (status === "loading") {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        Loading...
-      </div>
-    );
+    return <UserDashboardSkeleton />;
   }
 
   if (session && session.user.entityType === "user") {
+    // Mock data per l'abbonamento - in futuro verrà da un'API
+    const mockMembership = {
+      type: "Abbonamento Mensile",
+      status: "active",
+      startDate: "2024-01-01",
+      endDate: "2024-12-31",
+      price: "49.99",
+    };
+
     return (
-      <div className="min-h-screen bg-gray-100">
-        <nav className="flex items-center justify-between p-4 bg-white shadow-md">
-          <h1 className="text-xl font-bold text-indigo-600">
-            MyGym Member Area
-          </h1>
-          <div>
-            <span className="mr-4 text-gray-800">
-              Welcome, {session.user.name || session.user.email}
-            </span>
-            <button
-              onClick={() => signOut({ callbackUrl: "/" })}
-              className="px-4 py-2 font-semibold text-white bg-red-500 rounded-md hover:bg-red-600"
-            >
-              Log Out
-            </button>
-          </div>
-        </nav>
+      <div className="min-h-screen bg-background">
+        <UserNavbar userName={session.user.name || session.user.email} />
 
         <main className="p-4 mx-auto max-w-7xl">
-          <h2 className="text-3xl font-bold text-gray-900">Your Dashboard</h2>
-          <div className="p-8 mt-6 bg-white rounded-lg shadow-md">
-            <p>Welcome to your personal dashboard.</p>
-            <p>
-              In the future, you will see your workout plans, membership status,
-              and more here.
-            </p>
+          <h2 className="text-3xl font-bold text-foreground mb-6">
+            La tua Dashboard
+          </h2>
+
+          {/* Tab Navigation */}
+          <div className="flex gap-2 mb-6 border-b border-border">
+            <Button
+              variant={activeTab === "overview" ? "default" : "ghost"}
+              onClick={() => setActiveTab("overview")}
+              className="rounded-b-none"
+            >
+              <HiChartBar className="h-4 w-4 mr-2" />
+              Panoramica
+            </Button>
+            <Button
+              variant={activeTab === "weight" ? "default" : "ghost"}
+              onClick={() => setActiveTab("weight")}
+              className="rounded-b-none"
+            >
+              <HiScale className="h-4 w-4 mr-2" />
+              Tracciamento Peso
+            </Button>
           </div>
+
+          {/* Overview Tab */}
+          {activeTab === "overview" && (
+            <>
+              <div className="grid gap-6 lg:grid-cols-2">
+                <MembershipStatusCard membership={mockMembership} />
+                <WorkoutPlanCard />
+              </div>
+            </>
+          )}
+
+          {/* Weight Tracking Tab */}
+          {activeTab === "weight" && (
+            <div className="space-y-6">
+              {/* Form and Stats Row */}
+              <div className="grid gap-6 lg:grid-cols-3">
+                <WeightEntryForm onSuccess={refetchWeight} />
+                <WeightStatsCard weightEntries={weightEntries} period="week" />
+                <WeightStatsCard weightEntries={weightEntries} period="month" />
+              </div>
+
+              {/* Chart */}
+              <WeightChart weightEntries={weightEntries} />
+
+              {/* History Table */}
+              <WeightHistoryTable weightEntries={weightEntries} limit={10} />
+            </div>
+          )}
         </main>
       </div>
     );

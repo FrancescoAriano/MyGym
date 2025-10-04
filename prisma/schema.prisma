@@ -73,6 +73,7 @@ model User {
   // Relazioni
   memberships         GymMembership[]
   onboardingTokens    OnboardingToken[]
+  weightEntries       WeightEntry[]
 }
 
 // Modello per i Tipi di Abbonamento (specifici per ogni palestra)
@@ -134,4 +135,16 @@ model GymVerificationToken {
   
   // Relazione
   gym                 Gym               @relation(fields: [gymId], references: [id], onDelete: Cascade)
+}
+
+// Modello per le misure corporee
+model WeightEntry {
+  id                  String            @id @default(cuid())
+  weight              Decimal
+  date                DateTime          @db.Date
+  userId              String
+  createdAt           DateTime          @default(now())
+
+  // Relazione
+  user                User              @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

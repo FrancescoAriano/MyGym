@@ -6,48 +6,38 @@ import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { Button } from "@/components/ui/Button";
 import { Input, Select, Textarea } from "@/components/ui/Input";
-import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/Card";
+import { Card } from "@/components/ui/Card";
 import { Modal, ModalFooter } from "@/components/ui/Modal";
 import { Toast } from "@/components/ui/Toast";
+import { CardSkeleton, ChartSkeleton } from "@/components/ui/Skeleton";
+import { DashboardHeader } from "@/components/dashboard";
+import { PieChart, BarChart } from "@/components/charts";
+import { useMembersData } from "@/hooks/useMembersData";
+import { useSubscriptionsData } from "@/hooks/useSubscriptionsData";
+import { ChartFactory } from "@/lib/ChartFactory";
 import {
   HiPlus,
   HiPencil,
   HiArchiveBox,
   HiTrash,
   HiArrowPath,
-  HiChartBar,
 } from "react-icons/hi2";
-import {
-  PieChart,
-  Pie,
-  Cell,
-  ResponsiveContainer,
-  Tooltip,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-} from "recharts";
-
-const COLORS = [
-  "hsl(var(--chart-1))",
-  "hsl(var(--chart-2))",
-  "hsl(var(--chart-3))",
-  "hsl(var(--chart-4))",
-  "hsl(var(--chart-5))",
-];
 
 export default function AbbonamentiPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [subscriptions, setSubscriptions] = useState([]);
-  const [members, setMembers] = useState([]);
+  const { members, isLoading: membersLoading } = useMembersData();
+  const {
+    subscriptions,
+    activeSubscriptions,
+    archivedSubscriptions,
+    isLoading: subscriptionsLoading,
+    refetch: refetchSubscriptions,
+  } = useSubscriptionsData();
   const [activeTab, setActiveTab] = useState("active");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedSub, setSelectedSub] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [toast, setToast] = useState(null);
 
   useEffect(() => {
@@ -56,23 +46,7 @@ export default function AbbonamentiPage() {
       router.push("/login");
       return;
     }
-    fetchData();
   }, [session, status, router]);
-
-  const fetchData = async () => {
-    try {
-      const [subsRes, membersRes] = await Promise.all([
-        fetch("/api/gym/subscription-type/protected/get"),
-        fetch("/api/gym/member/get"),
-      ]);
-      if (subsRes.ok) setSubscriptions(await subsRes.json());
-      if (membersRes.ok) setMembers(await membersRes.json());
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const showToast = (message, type = "success") => {
     setToast({ message, type });
@@ -102,7 +76,7 @@ export default function AbbonamentiPage() {
         }
       );
       if (!response.ok) throw new Error(await response.text());
-      await fetchData();
+      await refetchSubscriptions();
       setIsAddModalOpen(false);
       showToast("Abbonamento creato con successo!");
       e.target.reset();
@@ -123,7 +97,7 @@ export default function AbbonamentiPage() {
         }
       );
       if (!response.ok) throw new Error(await response.text());
-      await fetchData();
+      await refetchSubscriptions();
       setIsEditModalOpen(false);
       showToast("Abbonamento aggiornato!");
     } catch (error) {
@@ -142,7 +116,7 @@ export default function AbbonamentiPage() {
         }
       );
       if (!response.ok) throw new Error(await response.text());
-      await fetchData();
+      await refetchSubscriptions();
       showToast("Abbonamento archiviato!");
     } catch (error) {
       showToast(error.message, "error");
@@ -160,7 +134,7 @@ export default function AbbonamentiPage() {
         }
       );
       if (!response.ok) throw new Error(await response.text());
-      await fetchData();
+      await refetchSubscriptions();
       showToast("Abbonamento ripristinato!");
     } catch (error) {
       showToast(error.message, "error");
@@ -179,38 +153,37 @@ export default function AbbonamentiPage() {
         }
       );
       if (!response.ok) throw new Error(await response.text());
-      await fetchData();
+      await refetchSubscriptions();
       showToast("Abbonamento eliminato!");
     } catch (error) {
       showToast(error.message, "error");
     }
   };
 
-  const activeSubscriptions = subscriptions.filter((s) => s.isActive);
-  const archivedSubscriptions = subscriptions.filter((s) => !s.isActive);
-
-  // Chart data
-  const pieData = activeSubscriptions.map((sub) => ({
-    name: sub.name,
-    value: members.filter((m) => m.subscriptionTypeId === sub.id).length,
-  }));
-
-  const revenueData = activeSubscriptions.map((sub) => ({
-    name: sub.name,
-    revenue:
-      members.filter((m) => m.subscriptionTypeId === sub.id).length *
-      Number.parseFloat(sub.price),
-  }));
-
-  if (status === "loading" || isLoading) {
+  if (status === "loading" || membersLoading || subscriptionsLoading) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center h-96">
-          <div className="text-muted-foreground">Caricamento...</div>
+        <div className="space-y-6">
+          <CardSkeleton lines={2} />
+          <div className="grid gap-6 lg:grid-cols-2">
+            <ChartSkeleton />
+            <ChartSkeleton />
+          </div>
+          <CardSkeleton lines={5} />
         </div>
       </DashboardLayout>
     );
   }
+
+  // Use ChartFactory to create chart data
+  const pieChartConfig = ChartFactory.createMemberDistributionChart(
+    members,
+    subscriptions
+  );
+  const barChartConfig = ChartFactory.createRevenueChart(
+    members,
+    subscriptions
+  );
 
   return (
     <DashboardLayout gymName={session?.user?.name || "MyGym"}>
@@ -225,93 +198,20 @@ export default function AbbonamentiPage() {
 
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Abbonamenti</h1>
-            <p className="text-muted-foreground mt-1">
-              Gestisci i tipi di abbonamento
-            </p>
-          </div>
-          <Button onClick={() => setIsAddModalOpen(true)} icon={HiPlus}>
-            Nuovo Abbonamento
-          </Button>
-        </div>
+        <DashboardHeader
+          title="Abbonamenti"
+          subtitle="Gestisci i tipi di abbonamento"
+          action={
+            <Button onClick={() => setIsAddModalOpen(true)} icon={HiPlus}>
+              Nuovo Abbonamento
+            </Button>
+          }
+        />
 
         {/* Charts */}
         <div className="grid gap-6 lg:grid-cols-2">
-          <Card hover>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <HiChartBar className="h-5 w-5 text-primary" />
-                Distribuzione Membri
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={pieData}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={({ name, percent }) =>
-                      `${name} ${(percent * 100).toFixed(0)}%`
-                    }
-                    outerRadius={80}
-                    fill="#8884d8"
-                    dataKey="value"
-                  >
-                    {pieData.map((entry, index) => (
-                      <Cell
-                        key={`cell-${index}`}
-                        fill={COLORS[index % COLORS.length]}
-                      />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "hsl(var(--card))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: "0.5rem",
-                    }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-
-          <Card hover>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <HiChartBar className="h-5 w-5 text-primary" />
-                Entrate Potenziali
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={revenueData}>
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    stroke="hsl(var(--border))"
-                  />
-                  <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" />
-                  <YAxis stroke="hsl(var(--muted-foreground))" />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "hsl(var(--card))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: "0.5rem",
-                    }}
-                  />
-                  <Bar
-                    dataKey="revenue"
-                    fill="hsl(var(--chart-2))"
-                    radius={[8, 8, 0, 0]}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
+          <Card hover>{ChartFactory.render(pieChartConfig)}</Card>
+          <Card hover>{ChartFactory.render(barChartConfig)}</Card>
         </div>
 
         {/* Tabs */}

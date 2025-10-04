@@ -9,24 +9,33 @@ import { Input, Select } from "@/components/ui/Input";
 import { Modal, ModalFooter } from "@/components/ui/Modal";
 import { Toast } from "@/components/ui/Toast";
 import { Badge } from "@/components/ui/Badge";
+import { TableSkeleton } from "@/components/ui/Skeleton";
+import { DashboardHeader } from "@/components/dashboard";
+import { useMembersData } from "@/hooks/useMembersData";
+import { useSubscriptionsData } from "@/hooks/useSubscriptionsData";
 import {
   HiMagnifyingGlass,
   HiUserPlus,
   HiPencil,
   HiTrash,
   HiCheck,
+  HiScale,
 } from "react-icons/hi2";
 
 export default function UtentiPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [members, setMembers] = useState([]);
-  const [subscriptions, setSubscriptions] = useState([]);
+  const {
+    members,
+    isLoading: membersLoading,
+    refetch: refetchMembers,
+  } = useMembersData();
+  const { activeSubscriptions, isLoading: subscriptionsLoading } =
+    useSubscriptionsData();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedMember, setSelectedMember] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
   const [toast, setToast] = useState(null);
 
   useEffect(() => {
@@ -35,23 +44,7 @@ export default function UtentiPage() {
       router.push("/login");
       return;
     }
-    fetchData();
   }, [session, status, router]);
-
-  const fetchData = async () => {
-    try {
-      const [membersRes, subsRes] = await Promise.all([
-        fetch("/api/gym/member/get"),
-        fetch("/api/gym/subscription-type/protected/get"),
-      ]);
-      if (membersRes.ok) setMembers(await membersRes.json());
-      if (subsRes.ok) setSubscriptions(await subsRes.json());
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const showToast = (message, type = "success") => {
     setToast({ message, type });
@@ -91,7 +84,7 @@ export default function UtentiPage() {
         }),
       });
       if (!response.ok) throw new Error(await response.text());
-      await fetchData();
+      await refetchMembers();
       setIsModalOpen(false);
       showToast("Membro aggiornato con successo!");
     } catch (error) {
@@ -108,7 +101,7 @@ export default function UtentiPage() {
         body: JSON.stringify({ userId }),
       });
       if (!response.ok) throw new Error(await response.text());
-      await fetchData();
+      await refetchMembers();
       showToast("Membro rimosso con successo!");
     } catch (error) {
       showToast(error.message, "error");
@@ -133,7 +126,7 @@ export default function UtentiPage() {
         }),
       });
       if (!response.ok) throw new Error(await response.text());
-      await fetchData();
+      await refetchMembers();
       setIsAddModalOpen(false);
       showToast("Membro aggiunto! Email di onboarding inviata.");
       e.target.reset();
@@ -149,11 +142,16 @@ export default function UtentiPage() {
       m.user.email.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  if (status === "loading" || isLoading) {
+  if (status === "loading" || membersLoading || subscriptionsLoading) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center h-96">
-          <div className="text-muted-foreground">Caricamento...</div>
+        <div className="space-y-6">
+          <div>
+            <div className="h-10 w-64 bg-muted animate-pulse rounded mb-2" />
+            <div className="h-4 w-96 bg-muted animate-pulse rounded" />
+          </div>
+          <div className="h-10 bg-muted animate-pulse rounded" />
+          <TableSkeleton rows={8} columns={6} />
         </div>
       </DashboardLayout>
     );
@@ -172,17 +170,15 @@ export default function UtentiPage() {
 
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Utenti</h1>
-            <p className="text-muted-foreground mt-1">
-              Gestisci i membri della tua palestra
-            </p>
-          </div>
-          <Button onClick={() => setIsAddModalOpen(true)} icon={HiUserPlus}>
-            Aggiungi Membro
-          </Button>
-        </div>
+        <DashboardHeader
+          title="Utenti"
+          subtitle="Gestisci i membri della tua palestra"
+          action={
+            <Button onClick={() => setIsAddModalOpen(true)} icon={HiUserPlus}>
+              Aggiungi Membro
+            </Button>
+          }
+        />
 
         {/* Search */}
         <Input
@@ -266,14 +262,27 @@ export default function UtentiPage() {
                       <td className="px-6 py-4">
                         <div className="flex items-center justify-end gap-2">
                           <button
+                            onClick={() =>
+                              router.push(
+                                `/gym/dashboard/utenti/${member.user.id}`
+                              )
+                            }
+                            className="p-2 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg transition-colors"
+                            title="Visualizza peso"
+                          >
+                            <HiScale className="h-5 w-5" />
+                          </button>
+                          <button
                             onClick={() => handleEdit(member)}
                             className="p-2 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg transition-colors"
+                            title="Modifica"
                           >
                             <HiPencil className="h-5 w-5" />
                           </button>
                           <button
                             onClick={() => handleDelete(member.user.id)}
                             className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
+                            title="Elimina"
                           >
                             <HiTrash className="h-5 w-5" />
                           </button>
@@ -335,14 +344,12 @@ export default function UtentiPage() {
                 })
               }
             >
-              {subscriptions
-                .filter((s) => s.isActive)
-                .map((sub) => (
-                  <option key={sub.id} value={sub.id}>
-                    {sub.name} - {sub.durationValue}{" "}
-                    {sub.durationUnit.toLowerCase()}
-                  </option>
-                ))}
+              {activeSubscriptions.map((sub) => (
+                <option key={sub.id} value={sub.id}>
+                  {sub.name} - {sub.durationValue}{" "}
+                  {sub.durationUnit.toLowerCase()}
+                </option>
+              ))}
             </Select>
             <Input
               label="Data Scadenza"
@@ -391,13 +398,11 @@ export default function UtentiPage() {
                 <option value="TRAINER">Trainer</option>
               </Select>
               <Select label="Abbonamento" name="subscriptionTypeId" required>
-                {subscriptions
-                  .filter((s) => s.isActive)
-                  .map((sub) => (
-                    <option key={sub.id} value={sub.id}>
-                      {sub.name}
-                    </option>
-                  ))}
+                {activeSubscriptions.map((sub) => (
+                  <option key={sub.id} value={sub.id}>
+                    {sub.name}
+                  </option>
+                ))}
               </Select>
             </div>
             <div className="grid grid-cols-2 gap-4">
