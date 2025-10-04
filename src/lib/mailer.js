@@ -1,5 +1,13 @@
 import nodemailer from "nodemailer";
+import { Resend } from "resend";
 
+// Resend configuration for production
+const resend = process.env.RESEND_API_KEY
+  ? new Resend(process.env.RESEND_API_KEY)
+  : null;
+const isProduction = process.env.NODE_ENV === "production";
+
+// Ethereal helper function for development
 const getEtherealCredentials = async () => {
   if (!global.etherealTestAccount) {
     global.etherealTestAccount = await nodemailer.createTestAccount();
@@ -7,128 +15,127 @@ const getEtherealCredentials = async () => {
   return global.etherealTestAccount;
 };
 
-export const sendOnboardingEmail = async (to, token) => {
-  try {
-    const testAccount = await getEtherealCredentials();
+// Generic helper function that decides which service to use
+async function sendEmail(options) {
+  if (isProduction && resend) {
+    // Resend email sending logic
+    try {
+      await resend.emails.send({
+        from: process.env.EMAIL_FROM,
+        to: options.to,
+        subject: options.subject,
+        html: options.html,
+      });
+      console.log(`Production email sent to ${options.to} via Resend.`);
+      return { success: true };
+    } catch (error) {
+      console.error("Error sending email with Resend:", error);
+      return { success: false, error: "Failed to send production email" };
+    }
+  } else {
+    // Ethereal email sending logic for development
+    try {
+      const testAccount = await getEtherealCredentials();
+      const transporter = nodemailer.createTransport({
+        host: "smtp.ethereal.email",
+        port: 587,
+        secure: false,
+        auth: {
+          user: testAccount.user,
+          pass: testAccount.pass,
+        },
+      });
 
-    const transporter = nodemailer.createTransport({
-      host: process.env.EMAIL_SERVER_HOST,
-      port: process.env.EMAIL_SERVER_PORT,
-      secure: false,
-      auth: {
-        user: testAccount.user,
-        pass: testAccount.pass,
-      },
-    });
+      const info = await transporter.sendMail({
+        from: process.env.EMAIL_FROM || "MyGym Dev <dev@example.com>",
+        ...options,
+      });
 
-    const onboardingUrl = `${process.env.NEXTAUTH_URL}/user/set-password?token=${token}`;
-
-    const mailOptions = {
-      from: process.env.EMAIL_FROM,
-      to: to,
-      subject: "Benvenuto su MyGym! Imposta la tua password",
-      html: `
-          <h1>Benvenuto su MyGym!</h1>
-          <p>Il tuo account è stato creato. Clicca sul link qui sotto per impostare la tua password e attivare il tuo account.</p>
-          <p>Questo link scadrà tra 72 ore.</p>
-          <a href="${onboardingUrl}">Imposta la tua password</a>
-          <p>Se non hai richiesto questo, ignora questa email.</p>
-          <p>Un saluto,<br/>Il team di MyGym</p>
-        `,
-    };
-
-    const info = await transporter.sendMail(mailOptions);
-    console.log("Message sent: %s", info.messageId);
-    const previewUrl = nodemailer.getTestMessageUrl(info);
-    console.log("Preview URL: %s", previewUrl);
-
-    return { success: true, previewUrl };
-  } catch (error) {
-    console.error("Error sending email:", error);
-    return { success: false, error: "Failed to send email" };
+      const previewUrl = nodemailer.getTestMessageUrl(info);
+      console.log(`Development email sent. Preview URL: ${previewUrl}`);
+      return { success: true, previewUrl };
+    } catch (error) {
+      console.error("Error sending development email with Ethereal:", error);
+      return { success: false, error: "Failed to send development email" };
+    }
   }
-};
+}
 
 export const sendGymVerificationEmail = async (to, token) => {
-  try {
-    const testAccount = await getEtherealCredentials();
-
-    const transporter = nodemailer.createTransport({
-      host: process.env.EMAIL_SERVER_HOST,
-      port: process.env.EMAIL_SERVER_PORT,
-      secure: false,
-      auth: {
-        user: testAccount.user,
-        pass: testAccount.pass,
-      },
-    });
-
-    const verificationUrl = `${process.env.NEXTAUTH_URL}/gym/verify-email?token=${token}`;
-
-    const mailOptions = {
-      from: process.env.EMAIL_FROM,
-      to: to,
-      subject: "Benvenuto su MyGym! Verifica la tua email",
-      html: `
-          <h1>Benvenuto su MyGym!</h1>
-          <p>Il tuo account è stato creato. Clicca sul link qui sotto per verificare la tua email e attivare il tuo account.</p>
-          <p>Questo link scadrà tra 72 ore.</p>
-          <a href="${verificationUrl}">Verifica la tua mail</a>
-          <p>Se non hai richiesto questo, ignora questa email.</p>
-          <p>Un saluto,<br/>Il team di MyGym</p>
+  const verificationUrl = `${process.env.NEXTAUTH_URL}/verify-email?token=${token}`;
+  return sendEmail({
+    to,
+    subject: "[MyGym] Verify Your Email Address",
+    html: `
+            <div style="font-family: Arial, sans-serif; line-height: 1.6;">
+                <h2>Welcome to MyGym!</h2>
+                <p>Thank you for registering your gym. Please click the button below to verify your email address.</p>
+                <p>This link is valid for 24 hours.</p>
+                <a href="${verificationUrl}" 
+                   style="display: inline-block; padding: 12px 24px; margin: 20px 0; font-size: 16px; color: white; background-color: #4f46e5; text-decoration: none; border-radius: 5px;">
+                   Verify Email Address
+                </a>
+                <p>If you did not register for a MyGym account, please ignore this email.</p>
+            </div>
         `,
-    };
+  });
+};
 
-    const info = await transporter.sendMail(mailOptions);
-    console.log("Message sent: %s", info.messageId);
-    const previewUrl = nodemailer.getTestMessageUrl(info);
-    console.log("Preview URL: %s", previewUrl);
+export const sendOnboardingEmail = async (to, token) => {
+  const onboardingUrl = `${process.env.NEXTAUTH_URL}/set-password?token=${token}`;
+  return sendEmail({
+    to,
+    subject: "Welcome to MyGym! Set up your account",
+    html: `
+            <div style="font-family: Arial, sans-serif; line-height: 1.6;">
+                <h2>Welcome to the Gym!</h2>
+                <p>Your account has been created. Please click the link below to set your password and activate your account.</p>
+                <p>This link will expire in 72 hours.</p>
+                <a href="${onboardingUrl}" 
+                   style="display: inline-block; padding: 12px 24px; margin: 20px 0; font-size: 16px; color: white; background-color: #4f46e5; text-decoration: none; border-radius: 5px;">
+                   Set Your Password
+                </a>
+            </div>
+        `,
+  });
+};
 
-    return { success: true, previewUrl };
-  } catch (error) {
-    console.error("Error sending email:", error);
-    return { success: false, error: "Failed to send email" };
-  }
+export const sendPasswordResetEmail = async (to, token) => {
+  const resetUrl = `${process.env.NEXTAUTH_URL}/set-password?token=${token}`;
+  return sendEmail({
+    to,
+    subject: "[MyGym] Password Reset Request",
+    html: `
+            <div style="font-family: Arial, sans-serif; line-height: 1.6;">
+                <h2>Password Reset</h2>
+                <p>You requested a password reset. Click the link below to set a new password.</p>
+                <p>This link is valid for 1 hour.</p>
+                <a href="${resetUrl}" 
+                   style="display: inline-block; padding: 12px 24px; margin: 20px 0; font-size: 16px; color: white; background-color: #4f46e5; text-decoration: none; border-radius: 5px;">
+                   Reset Password
+                </a>
+                <p>If you did not request this, please ignore this email.</p>
+            </div>
+        `,
+  });
 };
 
 export const sendAdminGymRegistrationNotification = async (gymData) => {
-  try {
-    const testAccount = await getEtherealCredentials();
-
-    const transporter = nodemailer.createTransport({
-      host: process.env.EMAIL_SERVER_HOST,
-      port: process.env.EMAIL_SERVER_PORT,
-      secure: false,
-      auth: {
-        user: testAccount.user,
-        pass: testAccount.pass,
-      },
-    });
-
-    const mailOptions = {
-      from: process.env.EMAIL_FROM,
-      to: process.env.ADMIN_EMAIL,
-      subject: `[MyGym] Nuova richiesta di registrazione: ${gymData.name}`,
-      html: `
-          <h1>Nuova Richiesta di Registrazione Palestra</h1>
-          <p>Una nuova palestra si è registrata e attende approvazione.</p>
-          <ul>
-            <li><strong>Nome:</strong> ${gymData.name}</li>
-            <li><strong>Email:</strong> ${gymData.email}</li>
-            <li><strong>Indirizzo:</strong> ${gymData.address}</li>
-          </ul>
-          <p>Puoi approvare questa palestra direttamente dal tuo database Neon.</p>
+  return sendEmail({
+    to: process.env.ADMIN_EMAIL,
+    subject: `[MyGym] New Gym Registration for Approval: ${gymData.name}`,
+    html: `
+            <div style="font-family: Arial, sans-serif; line-height: 1.6;">
+                <h1>New Gym Registration Pending Approval</h1>
+                <p>A new gym has verified their email and is waiting for your approval.</p>
+                <ul>
+                    <li><strong>ID:</strong> ${gymData.id}</li>
+                    <li><strong>Name:</strong> ${gymData.name}</li>
+                    <li><strong>Email:</strong> ${gymData.email}</li>
+                    <li><strong>Address:</strong> ${gymData.address}</li>
+                </ul>
+                <p>Please go to your database or admin panel to approve this gym.</p>
+            </div>
         `,
-    };
-
-    const info = await transporter.sendMail(mailOptions);
-    console.log("Message sent: %s", info.messageId);
-    const previewUrl = nodemailer.getTestMessageUrl(info);
-    console.log("Preview URL: %s", previewUrl);
-
-    return { success: true, previewUrl };
-  } catch (error) {
-    console.error("Error sending admin notification email:", error);
-    return { success: false, error: "Failed to send admin notification" };
-  }
+  });
 };
