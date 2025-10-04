@@ -47,7 +47,7 @@ const navigation = [
   },
 ];
 
-export function DashboardLayout({ children, gymName = "" }) {
+export function DashboardLayout({ children }) {
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -56,18 +56,11 @@ export function DashboardLayout({ children, gymName = "" }) {
     <div className="min-h-dvh bg-background">
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-64 transform bg-sidebar transition-transform duration-300 ease-in-out rounded-r-2xl lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 w-64 bg-sidebar transition-transform duration-300 rounded-3xl lg:translate-x-0 ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="flex h-full flex-col pt-4 lg:pt-5">
-          {/* Logo */}
-          <div className="flex h-16 items-center justify-between px-6">
-            <h1 className="text-2xl font-bold text-sidebar-foreground z-50">
-              {gymName}
-            </h1>
-          </div>
-
+        <div className="flex h-full flex-col">
           {/* Navigation */}
           <nav className="flex-1 space-y-2 p-4 overflow-y-auto">
             {navigation.map((item) => {
@@ -78,12 +71,12 @@ export function DashboardLayout({ children, gymName = "" }) {
                   key={item.name}
                   href={item.disabled ? "#" : item.href}
                   onClick={() => setSidebarOpen(false)}
-                  className={`flex items-center gap-4 rounded-lg px-2 py-4 text-sm font-medium transition-colors ${
+                  className={`flex gap-4 rounded-xl p-4 text-sm font-medium transition-all ${
                     item.disabled
-                      ? "cursor-not-allowed opacity-50"
+                      ? "opacity-50 pointer-events-none"
                       : isActive
                       ? "bg-sidebar-accent text-sidebar-primary"
-                      : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                      : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-primary"
                   }`}
                 >
                   <Icon className="h-5 w-5 flex-shrink-0" />
@@ -102,18 +95,18 @@ export function DashboardLayout({ children, gymName = "" }) {
           <div className="border-t border-sidebar-border p-4 space-y-2">
             <button
               onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-              className="flex w-full items-center gap-4 rounded-lg px-4 py-4 text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
+              className="flex gap-4 rounded-xl p-4 text-sm font-medium transition-all text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-primary w-full"
             >
               {theme === "dark" ? (
-                <HiSun className="h-5 w-5" />
+                <HiSun className="w-5 h-5" />
               ) : (
-                <HiMoon className="h-5 w-5" />
+                <HiMoon className="w-5 h-5" />
               )}
               {theme === "dark" ? "Modalità Chiara" : "Modalità Scura"}
             </button>
             <button
               onClick={() => signOut({ callbackUrl: "/login" })}
-              className="flex w-full items-center gap-4 rounded-lg px-4 py-4 text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors"
+              className="flex gap-4 rounded-xl p-4 text-sm font-medium transition-all text-destructive hover:bg-destructive/10 w-full"
             >
               <HiArrowRightOnRectangle className="h-5 w-5" />
               Esci
@@ -125,29 +118,20 @@ export function DashboardLayout({ children, gymName = "" }) {
       {/* Main content */}
       <div className="lg:pl-64">
         {/* Mobile header */}
-        <header className="fixed top-0 right-0 p-4 z-30 lg:hidden">
-          <div className="flex items-center justify-between p-4 bg-sidebar rounded-full shadow-lg">
-            <button
-              onClick={() => setSidebarOpen((prev) => !prev)}
-              className="text-foreground"
-            >
-              <div
-                className={`transition-transform duration-300 ${
-                  sidebarOpen ? "rotate-180" : "rotate-0"
-                }`}
-              >
-                {sidebarOpen ? (
-                  <HiXMark className="h-7 w-7" />
-                ) : (
-                  <HiBars3 className="h-7 w-7" />
-                )}
-              </div>
+        <header className="fixed top-0 right-0 z-30 p-8 lg:hidden">
+          <div className="flex items-center justify-center bg-sidebar p-4 rounded-full hover:bg-muted transition-colors duration-300">
+            <button onClick={() => setSidebarOpen((prev) => !prev)}>
+              {sidebarOpen ? (
+                <HiXMark className="h-6 w-6" />
+              ) : (
+                <HiBars3 className="h-6 w-6" />
+              )}
             </button>
           </div>
         </header>
 
         {/* Page content */}
-        <main className="p-4 lg:p-8">{children}</main>
+        <main className="p-8">{children}</main>
       </div>
     </div>
   );

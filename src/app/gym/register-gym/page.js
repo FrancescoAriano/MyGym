@@ -2,7 +2,18 @@
 
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { debounce } from "lodash";
+import { AuthLayout } from "@/components/auth-layout";
+import { Button } from "@/components/ui/Button";
+import { Input, Textarea } from "@/components/ui/Input";
+import {
+  HiBuildingStorefront,
+  HiEnvelope,
+  HiLockClosed,
+  HiPhone,
+  HiMapPin,
+} from "react-icons/hi2";
 
 export default function RegisterGymPage() {
   const [formData, setFormData] = useState({
@@ -101,7 +112,7 @@ export default function RegisterGymPage() {
 
     if (!formData.latitude || !formData.longitude) {
       setError(
-        "Please select a valid address from the suggestions to set your gym's location."
+        "Seleziona un indirizzo valido dai suggerimenti per impostare la posizione della tua palestra."
       );
       setIsLoading(false);
       return;
@@ -116,7 +127,7 @@ export default function RegisterGymPage() {
       const responseText = await response.text();
       if (!response.ok) throw new Error(responseText);
 
-      setSuccess(`${responseText} You will be redirected to the login page.`);
+      setSuccess(`Registrato! Sarai reindirizzato alla pagina di login.`);
       setTimeout(() => {
         router.push("/login");
       }, 5000);
@@ -128,96 +139,114 @@ export default function RegisterGymPage() {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-100 p-4">
-      <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md">
-        <h2 className="text-2xl font-bold text-center text-gray-900">
-          Register Your Gym
-        </h2>
+    <AuthLayout
+      title="Registra la tua Palestra"
+      subtitle="Inizia a gestire la tua palestra con MyGym"
+    >
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <Input
+          name="name"
+          type="text"
+          value={formData.name}
+          onChange={handleChange}
+          placeholder="Nome della Palestra"
+          icon={HiBuildingStorefront}
+          required
+        />
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <input
-            name="name"
+        <Input
+          name="email"
+          type="email"
+          value={formData.email}
+          onChange={handleChange}
+          placeholder="Email"
+          icon={HiEnvelope}
+          required
+        />
+
+        <Input
+          name="password"
+          type="password"
+          value={formData.password}
+          onChange={handleChange}
+          placeholder="Password"
+          icon={HiLockClosed}
+          required
+        />
+
+        <Input
+          name="phoneNumber"
+          type="tel"
+          value={formData.phoneNumber}
+          onChange={handleChange}
+          placeholder="Numero di Telefono"
+          icon={HiPhone}
+        />
+
+        <div className="relative">
+          <Input
+            name="address"
             type="text"
-            value={formData.name}
-            onChange={handleChange}
-            placeholder="Gym Name"
+            value={formData.address}
+            onChange={handleAddressChange}
+            placeholder="Inizia a digitare l'indirizzo..."
+            icon={HiMapPin}
             required
-            className="w-full px-4 py-2 text-gray-900 bg-gray-200 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            autoComplete="off"
           />
-          <input
-            name="email"
-            type="email"
-            value={formData.email}
-            onChange={handleChange}
-            placeholder="Email Address"
-            required
-            className="w-full px-4 py-2 text-gray-900 bg-gray-200 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
-          <input
-            name="password"
-            type="password"
-            value={formData.password}
-            onChange={handleChange}
-            placeholder="Password"
-            required
-            className="w-full px-4 py-2 text-gray-900 bg-gray-200 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
-          <input
-            name="phoneNumber"
-            type="tel"
-            value={formData.phoneNumber}
-            onChange={handleChange}
-            placeholder="Phone Number"
-            className="w-full px-4 py-2 text-gray-900 bg-gray-200 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
-
-          <div className="relative">
-            <input
-              name="address"
-              type="text"
-              value={formData.address}
-              onChange={handleAddressChange}
-              placeholder="Start typing gym address..."
-              required
-              autoComplete="off"
-              className="w-full px-4 py-2 text-gray-900 bg-gray-200 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-            {isSearchingAddress && (
-              <span className="absolute text-xs text-gray-500 top-12">
-                Searching...
-              </span>
-            )}
-            {addressSuggestions.length > 0 && (
-              <ul className="absolute z-10 w-full mt-1 overflow-hidden bg-white border border-gray-300 rounded-md shadow-lg">
-                {addressSuggestions.map((suggestion) => (
-                  <li
-                    key={suggestion.place_id}
-                    onClick={() => selectAddress(suggestion)}
-                    className="p-2 text-sm cursor-pointer hover:bg-gray-100"
-                  >
-                    {suggestion.display_name}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-
-          <button
-            type="submit"
-            disabled={isLoading || success}
-            className="w-full px-4 py-2 font-semibold text-white bg-indigo-600 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-gray-400"
-          >
-            {isLoading ? "Registering..." : "Register"}
-          </button>
-        </form>
+          {isSearchingAddress && (
+            <span className="absolute text-xs text-muted-foreground top-full">
+              Ricerca in corso...
+            </span>
+          )}
+          {addressSuggestions.length > 0 && (
+            <ul className="absolute z-10 w-full mt-2 bg-card border border-border rounded-lg shadow-lg max-h-48 overflow-y-auto">
+              {addressSuggestions.map((suggestion) => (
+                <li
+                  key={suggestion.place_id}
+                  onClick={() => selectAddress(suggestion)}
+                  className="p-3 text-sm cursor-pointer hover:bg-muted transition-colors text-foreground border-b border-border last:border-b-0"
+                >
+                  {suggestion.display_name}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
 
         {error && (
-          <p className="mt-4 text-sm text-center text-red-600">{error}</p>
+          <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+            <p className="text-sm text-destructive">{error}</p>
+          </div>
         )}
+
         {success && (
-          <p className="mt-4 text-sm text-center text-green-600">{success}</p>
+          <div className="p-3 rounded-lg bg-chart-3/10 border border-chart-3/20">
+            <p className="text-sm text-chart-3">{success}</p>
+          </div>
         )}
+
+        <Button
+          type="submit"
+          disabled={isLoading || success}
+          className="w-full"
+          size="lg"
+        >
+          {isLoading ? "Registrazione..." : "Registra"}
+        </Button>
+      </form>
+
+      <div className="text-center">
+        <p className="text-sm text-muted-foreground">
+          Hai già un account?{" "}
+          <Link
+            href="/login"
+            className="font-medium text-primary hover:underline"
+          >
+            Accedi qui
+          </Link>
+        </p>
       </div>
-    </div>
+    </AuthLayout>
   );
 }

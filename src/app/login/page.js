@@ -3,6 +3,11 @@
 import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { AuthLayout } from "@/components/auth-layout";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { HiEnvelope, HiLockClosed } from "react-icons/hi2";
 
 export default function LoginPage() {
   const [formData, setFormData] = useState({
@@ -14,12 +19,23 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
-  const handleChange = (e) => {
+  // Clear error when the user edits any input
+  const handleInputChange = (e) => {
     const { name, value } = e.target;
+    // update form
     setFormData((prevState) => ({
       ...prevState,
       [name]: value,
     }));
+    // clear any existing error
+    if (error) setError("");
+  };
+
+  const handleEntityTypeChange = (type) => {
+    if (type === entityType) return;
+    setEntityType(type);
+    // clear any existing error when switching between user/gym
+    if (error) setError("");
   };
 
   const handleSubmit = async (e) => {
@@ -29,7 +45,7 @@ export default function LoginPage() {
 
     // Usiamo la funzione signIn di NextAuth
     const result = await signIn("credentials", {
-      redirect: false, // Non reindirizzare automaticamente, gestiamo noi la risposta
+      redirect: false,
       email: formData.email,
       password: formData.password,
       entity: entityType,
@@ -44,84 +60,81 @@ export default function LoginPage() {
       if (entityType === "gym") {
         router.push("/gym/dashboard/home");
       } else {
-        router.push("/user/dashboard"); // O un'altra pagina per gli utenti
+        router.push("/user/dashboard");
       }
     }
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-100">
-      <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md">
-        <h2 className="text-2xl font-bold text-center text-gray-900">
-          Log In to MyGym
-        </h2>
+    <AuthLayout title="Bentornato" subtitle="Accedi al tuo account MyGym">
+      {/* Selettore per tipo di entità */}
+      <div className="flex p-2 space-x-2 bg-muted/50 rounded-xl">
+        <button
+          type="button"
+          onClick={() => handleEntityTypeChange("user")}
+          className={`flex-1 px-4 py-2.5 text-sm font-medium rounded-lg transition-all ${
+            entityType === "user"
+              ? "bg-background text-foreground shadow-md"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          Sono un Utente
+        </button>
+        <button
+          type="button"
+          onClick={() => handleEntityTypeChange("gym")}
+          className={`flex-1 px-4 py-2.5 text-sm font-medium rounded-lg transition-all ${
+            entityType === "gym"
+              ? "bg-background text-foreground shadow-md"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          Sono una Palestra
+        </button>
+      </div>
 
-        {/* Selettore per tipo di entità */}
-        <div className="flex justify-center p-1 space-x-1 bg-gray-200 rounded-md">
-          <button
-            onClick={() => setEntityType("user")}
-            className={`w-full px-4 py-2 text-sm font-medium rounded-md ${
-              entityType === "user"
-                ? "bg-white text-indigo-700 shadow"
-                : "text-gray-600"
-            }`}
-          >
-            I am a User
-          </button>
-          <button
-            onClick={() => setEntityType("gym")}
-            className={`w-full px-4 py-2 text-sm font-medium rounded-md ${
-              entityType === "gym"
-                ? "bg-white text-indigo-700 shadow"
-                : "text-gray-600"
-            }`}
-          >
-            I am a Gym
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <input
-            name="email"
-            type="email"
-            value={formData.email}
-            onChange={handleChange}
-            placeholder="Email Address"
-            required
-            className="w-full px-4 py-2 text-gray-900 bg-gray-200 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
-          <input
-            name="password"
-            type="password"
-            value={formData.password}
-            onChange={handleChange}
-            placeholder="Password"
-            required
-            className="w-full px-4 py-2 text-gray-900 bg-gray-200 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
-
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full px-4 py-2 font-semibold text-white bg-indigo-600 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-gray-400"
-          >
-            {isLoading ? "Logging in..." : "Log In"}
-          </button>
-        </form>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <Input
+          name="email"
+          type="email"
+          value={formData.email}
+          onChange={handleInputChange}
+          placeholder="Email"
+          icon={HiEnvelope}
+          required
+        />
+        <Input
+          name="password"
+          type="password"
+          value={formData.password}
+          onChange={handleInputChange}
+          placeholder="Password"
+          icon={HiLockClosed}
+          required
+        />
 
         {error && (
-          <p className="mt-4 text-sm text-center text-red-600">{error}</p>
+          <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+            <p className="text-sm text-destructive">{error}</p>
+          </div>
         )}
-        <p className="text-sm text-center text-gray-600">
-          Don&apos;t have a gym account?{" "}
-          <a
+
+        <Button type="submit" disabled={isLoading} className="w-full" size="lg">
+          {isLoading ? "Accesso in corso..." : "Accedi"}
+        </Button>
+      </form>
+
+      <div className="text-center space-y-2">
+        <p className="text-sm text-muted-foreground">
+          Non hai un account palestra?{" "}
+          <Link
             href="/gym/register-gym"
-            className="font-medium text-indigo-600 hover:text-indigo-500"
+            className="font-medium text-primary hover:underline"
           >
-            Register here
-          </a>
+            Registrati qui
+          </Link>
         </p>
       </div>
-    </div>
+    </AuthLayout>
   );
 }
