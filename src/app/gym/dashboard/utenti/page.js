@@ -2,7 +2,7 @@
 
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -13,6 +13,7 @@ import { Toast } from "@/components/ui/Toast";
 import { Badge } from "@/components/ui/Badge";
 import { TableSkeleton } from "@/components/ui/Skeleton";
 import { DashboardHeader } from "@/components/dashboard";
+import { AddMemberForm } from "@/components/dashboard/AddMemberForm";
 import { useMembersData } from "@/hooks/useMembersData";
 import { useSubscriptionsData } from "@/hooks/useSubscriptionsData";
 import { formatPrice, formatDuration, formatDate } from "@/lib/formatters";
@@ -47,17 +48,6 @@ export default function UtentiPage() {
   const [confirmEdit, setConfirmEdit] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
 
-  // Stato per nuovo membro
-  const [newMember, setNewMember] = useState({
-    email: "",
-    firstName: "",
-    lastName: "",
-    role: "CLIENT",
-    subscriptionTypeId: "",
-    startDate: new Date().toISOString().split("T")[0],
-    endDate: "",
-  });
-
   useEffect(() => {
     if (status === "loading") return;
     if (status === "unauthenticated" || session?.user?.entityType !== "gym") {
@@ -71,41 +61,33 @@ export default function UtentiPage() {
     setTimeout(() => setToast(null), 3000);
   };
 
-  // Calcola automaticamente la data di fine abbonamento
-  const calculateEndDate = (subscriptionTypeId, startDate) => {
-    const subscription = activeSubscriptions.find(
-      (s) => s.id === subscriptionTypeId
-    );
-    if (!subscription || !startDate) return "";
-
-    const start = new Date(startDate);
-    const end = new Date(start);
-
-    switch (subscription.durationUnit) {
-      case "DAY":
-        end.setDate(end.getDate() + subscription.durationValue);
-        break;
-      case "WEEK":
-        end.setDate(end.getDate() + subscription.durationValue * 7);
-        break;
-      case "MONTH":
-        end.setMonth(end.getMonth() + subscription.durationValue);
-        break;
-    }
-
-    return end.toISOString().split("T")[0];
-  };
-
-  // Aggiorna la data di fine quando cambia abbonamento o data di inizio
-  useEffect(() => {
-    if (newMember.subscriptionTypeId && newMember.startDate) {
-      const endDate = calculateEndDate(
-        newMember.subscriptionTypeId,
-        newMember.startDate
+  // Calcola automaticamente la data di fine abbonamento - memoized per evitare re-render
+  const calculateEndDate = useCallback(
+    (subscriptionTypeId, startDate) => {
+      const subscription = activeSubscriptions.find(
+        (s) => s.id === subscriptionTypeId
       );
-      setNewMember((prev) => ({ ...prev, endDate }));
-    }
-  }, [newMember.subscriptionTypeId, newMember.startDate, calculateEndDate]);
+      if (!subscription || !startDate) return "";
+
+      const start = new Date(startDate);
+      const end = new Date(start);
+
+      switch (subscription.durationUnit) {
+        case "DAY":
+          end.setDate(end.getDate() + subscription.durationValue);
+          break;
+        case "WEEK":
+          end.setDate(end.getDate() + subscription.durationValue * 7);
+          break;
+        case "MONTH":
+          end.setMonth(end.getMonth() + subscription.durationValue);
+          break;
+      }
+
+      return end.toISOString().split("T")[0];
+    },
+    [activeSubscriptions]
+  );
 
   // Aggiorna endDate anche in modifica
   useEffect(() => {
@@ -120,7 +102,12 @@ export default function UtentiPage() {
       );
       setSelectedMember((prev) => ({ ...prev, endDate }));
     }
-  }, [selectedMember?.subscriptionTypeId, selectedMember?.startDate, calculateEndDate, isModalOpen]);
+  }, [
+    selectedMember?.subscriptionTypeId,
+    selectedMember?.startDate,
+    calculateEndDate,
+    isModalOpen,
+  ]);
 
   const handleEdit = (member) => {
     const startDate = member.startDate
@@ -219,22 +206,20 @@ export default function UtentiPage() {
     }
   };
 
-  const handleAddMember = async (e) => {
-    e.preventDefault();
-
+  const handleAddMemberSubmit = async (formData) => {
     // Validazione: cliente deve avere abbonamento
-    if (newMember.role === "CLIENT" && !newMember.subscriptionTypeId) {
+    if (formData.role === "CLIENT" && !formData.subscriptionTypeId) {
       showToast("I clienti devono avere un abbonamento", "error");
       return;
     }
 
     // Mostra modal di conferma con riepilogo
     const subscription = activeSubscriptions.find(
-      (s) => s.id === newMember.subscriptionTypeId
+      (s) => s.id === formData.subscriptionTypeId
     );
 
     setConfirmAdd({
-      ...newMember,
+      ...formData,
       subscriptionName: subscription?.name || "Nessuno",
     });
   };
@@ -264,15 +249,6 @@ export default function UtentiPage() {
       await refetchMembers();
       setIsAddModalOpen(false);
       setConfirmAdd(null);
-      setNewMember({
-        email: "",
-        firstName: "",
-        lastName: "",
-        role: "CLIENT",
-        subscriptionTypeId: "",
-        startDate: new Date().toISOString().split("T")[0],
-        endDate: "",
-      });
       showToast("Membro aggiunto! Email di onboarding inviata.");
     } catch (error) {
       showToast(error.message, "error");
@@ -592,139 +568,14 @@ export default function UtentiPage() {
       {isAddModalOpen && (
         <Modal
           isOpen={isAddModalOpen}
-          onClose={() => {
-            setIsAddModalOpen(false);
-            setNewMember({
-              email: "",
-              firstName: "",
-              lastName: "",
-              role: "CLIENT",
-              subscriptionTypeId: "",
-              startDate: new Date().toISOString().split("T")[0],
-              endDate: "",
-            });
-          }}
+          onClose={() => setIsAddModalOpen(false)}
           title="Aggiungi Nuovo Membro"
         >
-          <form onSubmit={handleAddMember} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <Input
-                label="Nome"
-                type="text"
-                value={newMember.firstName}
-                onChange={(e) =>
-                  setNewMember({ ...newMember, firstName: e.target.value })
-                }
-                required
-              />
-              <Input
-                label="Cognome"
-                type="text"
-                value={newMember.lastName}
-                onChange={(e) =>
-                  setNewMember({ ...newMember, lastName: e.target.value })
-                }
-                required
-              />
-            </div>
-
-            <Input
-              label="Email"
-              type="email"
-              value={newMember.email}
-              onChange={(e) =>
-                setNewMember({ ...newMember, email: e.target.value })
-              }
-              required
-            />
-
-            <Select
-              label="Ruolo"
-              value={newMember.role}
-              onChange={(value) => setNewMember({ ...newMember, role: value })}
-              options={[
-                { value: "CLIENT", label: "Cliente" },
-                { value: "TRAINER", label: "Trainer" },
-              ]}
-            />
-
-            <Select
-              label={`Abbonamento ${
-                newMember.role === "TRAINER" ? "(Opzionale)" : ""
-              }`}
-              value={newMember.subscriptionTypeId}
-              onChange={(value) =>
-                setNewMember({ ...newMember, subscriptionTypeId: value })
-              }
-              options={[
-                ...(newMember.role === "TRAINER"
-                  ? [{ value: "", label: "Nessuno" }]
-                  : []),
-                ...activeSubscriptions.map((sub) => ({
-                  value: sub.id,
-                  label: `${sub.name} - ${formatDuration(
-                    sub.durationValue,
-                    sub.durationUnit
-                  )} (€${formatPrice(sub.price)})`,
-                })),
-              ]}
-              required={newMember.role === "CLIENT"}
-            />
-
-            {newMember.subscriptionTypeId && (
-              <>
-                <div className="grid grid-cols-2 gap-4">
-                  <Input
-                    label="Data Inizio"
-                    type="date"
-                    value={newMember.startDate}
-                    onChange={(e) =>
-                      setNewMember({ ...newMember, startDate: e.target.value })
-                    }
-                    required
-                  />
-                  <Input
-                    label="Data Fine (Auto-calcolata)"
-                    type="date"
-                    value={newMember.endDate}
-                    onChange={(e) =>
-                      setNewMember({ ...newMember, endDate: e.target.value })
-                    }
-                    required
-                  />
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  💡 La data di fine viene calcolata automaticamente in base al
-                  tipo di abbonamento selezionato
-                </p>
-              </>
-            )}
-
-            <ModalFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setIsAddModalOpen(false);
-                  setNewMember({
-                    email: "",
-                    firstName: "",
-                    lastName: "",
-                    role: "CLIENT",
-                    subscriptionTypeId: "",
-                    startDate: new Date().toISOString().split("T")[0],
-                    endDate: "",
-                  });
-                }}
-                className="flex-1"
-              >
-                Annulla
-              </Button>
-              <Button type="submit" className="flex-1">
-                Aggiungi Membro
-              </Button>
-            </ModalFooter>
-          </form>
+          <AddMemberForm
+            activeSubscriptions={activeSubscriptions}
+            onSubmit={handleAddMemberSubmit}
+            onCancel={() => setIsAddModalOpen(false)}
+          />
         </Modal>
       )}
 
@@ -787,7 +638,8 @@ export default function UtentiPage() {
             )}
           </div>
           <p className="mt-3 text-xs text-muted-foreground text-center">
-            Verrà inviata un&apos;email di onboarding all&apos;indirizzo specificato.
+            Verrà inviata un&apos;email di onboarding all&apos;indirizzo
+            specificato.
           </p>
         </ConfirmationModal>
       )}

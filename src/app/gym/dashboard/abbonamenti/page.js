@@ -705,8 +705,8 @@ export default function AbbonamentiPage() {
                 <strong className="text-destructive">Attenzione:</strong> Ci
                 sono {confirmDelete.memberCount}{" "}
                 {confirmDelete.memberCount === 1 ? "utente" : "utenti"} con
-                questo abbonamento. L&apos;eliminazione non sarà possibile fino a
-                quando ci sono utenti associati.
+                questo abbonamento. L&apos;eliminazione non sarà possibile fino
+                a quando ci sono utenti associati.
               </p>
             </div>
           )}
