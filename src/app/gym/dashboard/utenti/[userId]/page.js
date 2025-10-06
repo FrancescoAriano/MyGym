@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import { DashboardHeader } from "@/components/dashboard";
+import { WeightStatsCard } from "@/components/weight/WeightStatsCard";
 import { WeightChart, WeightHistoryTable } from "@/components/weight";
 import { UserDashboardSkeleton } from "@/components/ui";
 import { useWeightData } from "@/hooks/useWeightData";
