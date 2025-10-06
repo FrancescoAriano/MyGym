@@ -105,7 +105,7 @@ export default function UtentiPage() {
       );
       setNewMember((prev) => ({ ...prev, endDate }));
     }
-  }, [newMember.subscriptionTypeId, newMember.startDate]);
+  }, [newMember.subscriptionTypeId, newMember.startDate, calculateEndDate]);
 
   // Aggiorna endDate anche in modifica
   useEffect(() => {
@@ -120,7 +120,7 @@ export default function UtentiPage() {
       );
       setSelectedMember((prev) => ({ ...prev, endDate }));
     }
-  }, [selectedMember?.subscriptionTypeId, selectedMember?.startDate]);
+  }, [selectedMember?.subscriptionTypeId, selectedMember?.startDate, calculateEndDate, isModalOpen]);
 
   const handleEdit = (member) => {
     const startDate = member.startDate
@@ -787,7 +787,7 @@ export default function UtentiPage() {
             )}
           </div>
           <p className="mt-3 text-xs text-muted-foreground text-center">
-            Verrà inviata un'email di onboarding all'indirizzo specificato.
+            Verrà inviata un&apos;email di onboarding all&apos;indirizzo specificato.
           </p>
         </ConfirmationModal>
       )}
@@ -850,7 +850,7 @@ export default function UtentiPage() {
           <div className="mt-4 text-left bg-destructive/10 rounded-lg p-4 border border-destructive/20">
             <p className="text-sm text-foreground">
               <strong className="text-destructive">Attenzione:</strong> Questa
-              azione rimuoverà il membro dalla tua palestra. L'utente potrà
+              azione rimuoverà il membro dalla tua palestra. L&apos;utente potrà
               essere ri-aggiunto in futuro.
             </p>
             <p className="text-xs text-muted-foreground mt-2">

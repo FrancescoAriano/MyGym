@@ -424,7 +424,7 @@ export default function AbbonamentiPage() {
               label="Descrizione (opzionale)"
               name="description"
               rows="3"
-              placeholder="Descrizione dell'abbonamento..."
+              placeholder={"Descrizione dell&apos;abbonamento..."}
             />
 
             <div className="border-t border-border pt-4 mt-4">
@@ -681,7 +681,7 @@ export default function AbbonamentiPage() {
           <div className="mt-4 text-left bg-muted/30 rounded-lg p-4 border border-border">
             <p className="text-sm text-foreground">
               <strong>Suggerimento:</strong> Se non vuoi modificare
-              l'abbonamento esistente, crea un nuovo abbonamento invece.
+              l&apos;abbonamento esistente, crea un nuovo abbonamento invece.
             </p>
           </div>
         </ConfirmationModal>
@@ -694,7 +694,7 @@ export default function AbbonamentiPage() {
           onClose={() => setConfirmDelete(null)}
           onConfirm={confirmDeleteSubscription}
           title="Elimina Abbonamento"
-          message={`Sei sicuro di voler eliminare permanentemente l'abbonamento "${confirmDelete.name}"?`}
+          message={`Sei sicuro di voler eliminare permanentemente l&apos;abbonamento "${confirmDelete.name}"?`}
           confirmText="Sì, Elimina"
           cancelText="Annulla"
           type="danger"
@@ -705,7 +705,7 @@ export default function AbbonamentiPage() {
                 <strong className="text-destructive">Attenzione:</strong> Ci
                 sono {confirmDelete.memberCount}{" "}
                 {confirmDelete.memberCount === 1 ? "utente" : "utenti"} con
-                questo abbonamento. L'eliminazione non sarà possibile fino a
+                questo abbonamento. L&apos;eliminazione non sarà possibile fino a
                 quando ci sono utenti associati.
               </p>
             </div>
