@@ -62,7 +62,7 @@ export function BarChart({
   }
 
   return (
-    <div className="bg-card rounded-2xl p-6 shadow-md hover:scale-105 transition-transform duration-300">
+    <div className="bg-card rounded-2xl p-6 shadow-md">
       <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
         <HiChartBar className="h-5 w-5 text-primary" />
         {title}
@@ -75,18 +75,11 @@ export function BarChart({
             stroke={chartColors.mutedForeground}
             tick={{ fill: chartColors.mutedForeground }}
           />
-          <YAxis
-            stroke={chartColors.mutedForeground}
-            tick={{ fill: chartColors.mutedForeground }}
+          <Bar
+            dataKey={dataKeyY}
+            radius={[8, 8, 0, 0]}
+            stroke="var(--primary)"
           />
-          <Tooltip
-            contentStyle={{
-              backgroundColor: "hsl(var(--card))",
-              border: "1px solid hsl(var(--border))",
-              borderRadius: "0.5rem",
-            }}
-          />
-          <Bar dataKey={dataKeyY} fill={color} radius={[8, 8, 0, 0]} />
         </RechartsBar>
       </ResponsiveContainer>
     </div>

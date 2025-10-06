@@ -5,14 +5,17 @@ import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { Button } from "@/components/ui/Button";
-import { Input, Select } from "@/components/ui/Input";
+import { Input } from "@/components/ui/Input";
+import { Select } from "@/components/ui/Select";
 import { Modal, ModalFooter } from "@/components/ui/Modal";
+import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { Toast } from "@/components/ui/Toast";
 import { Badge } from "@/components/ui/Badge";
 import { TableSkeleton } from "@/components/ui/Skeleton";
 import { DashboardHeader } from "@/components/dashboard";
 import { useMembersData } from "@/hooks/useMembersData";
 import { useSubscriptionsData } from "@/hooks/useSubscriptionsData";
+import { formatPrice, formatDuration, formatDate } from "@/lib/formatters";
 import {
   HiMagnifyingGlass,
   HiUserPlus,
@@ -20,6 +23,7 @@ import {
   HiTrash,
   HiCheck,
   HiScale,
+  HiArrowPath,
 } from "react-icons/hi2";
 
 export default function UtentiPage() {
@@ -38,6 +42,22 @@ export default function UtentiPage() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [toast, setToast] = useState(null);
 
+  // Conferma modali
+  const [confirmAdd, setConfirmAdd] = useState(null);
+  const [confirmEdit, setConfirmEdit] = useState(null);
+  const [confirmDelete, setConfirmDelete] = useState(null);
+
+  // Stato per nuovo membro
+  const [newMember, setNewMember] = useState({
+    email: "",
+    firstName: "",
+    lastName: "",
+    role: "CLIENT",
+    subscriptionTypeId: "",
+    startDate: new Date().toISOString().split("T")[0],
+    endDate: "",
+  });
+
   useEffect(() => {
     if (status === "loading") return;
     if (status === "unauthenticated" || session?.user?.entityType !== "gym") {
@@ -51,87 +71,212 @@ export default function UtentiPage() {
     setTimeout(() => setToast(null), 3000);
   };
 
+  // Calcola automaticamente la data di fine abbonamento
+  const calculateEndDate = (subscriptionTypeId, startDate) => {
+    const subscription = activeSubscriptions.find(
+      (s) => s.id === subscriptionTypeId
+    );
+    if (!subscription || !startDate) return "";
+
+    const start = new Date(startDate);
+    const end = new Date(start);
+
+    switch (subscription.durationUnit) {
+      case "DAY":
+        end.setDate(end.getDate() + subscription.durationValue);
+        break;
+      case "WEEK":
+        end.setDate(end.getDate() + subscription.durationValue * 7);
+        break;
+      case "MONTH":
+        end.setMonth(end.getMonth() + subscription.durationValue);
+        break;
+    }
+
+    return end.toISOString().split("T")[0];
+  };
+
+  // Aggiorna la data di fine quando cambia abbonamento o data di inizio
+  useEffect(() => {
+    if (newMember.subscriptionTypeId && newMember.startDate) {
+      const endDate = calculateEndDate(
+        newMember.subscriptionTypeId,
+        newMember.startDate
+      );
+      setNewMember((prev) => ({ ...prev, endDate }));
+    }
+  }, [newMember.subscriptionTypeId, newMember.startDate]);
+
+  // Aggiorna endDate anche in modifica
+  useEffect(() => {
+    if (
+      selectedMember?.subscriptionTypeId &&
+      selectedMember?.startDate &&
+      isModalOpen
+    ) {
+      const endDate = calculateEndDate(
+        selectedMember.subscriptionTypeId,
+        selectedMember.startDate
+      );
+      setSelectedMember((prev) => ({ ...prev, endDate }));
+    }
+  }, [selectedMember?.subscriptionTypeId, selectedMember?.startDate]);
+
   const handleEdit = (member) => {
+    const startDate = member.startDate
+      ? new Date(member.startDate).toISOString().split("T")[0]
+      : new Date().toISOString().split("T")[0];
+
     setSelectedMember({
       userId: member.user.id,
       firstName: member.user.firstName,
       lastName: member.user.lastName,
       email: member.user.email,
       role: member.role,
-      subscriptionTypeId: member.subscriptionTypeId,
-      endDate: new Date(member.endDate).toISOString().split("T")[0],
+      subscriptionTypeId: member.subscriptionTypeId || "",
+      startDate,
+      endDate: member.endDate
+        ? new Date(member.endDate).toISOString().split("T")[0]
+        : "",
     });
     setIsModalOpen(true);
   };
 
   const handleUpdate = async (e) => {
     e.preventDefault();
+
+    // Mostra modal di conferma
+    const member = members.find((m) => m.user.id === selectedMember.userId);
+    setConfirmEdit({
+      ...selectedMember,
+      oldRole: member.role,
+      oldSubscription: member.subscriptionType?.name,
+      newSubscription: activeSubscriptions.find(
+        (s) => s.id === selectedMember.subscriptionTypeId
+      )?.name,
+    });
+  };
+
+  const confirmUpdateMember = async () => {
     try {
+      const updateData = {
+        userId: confirmEdit.userId,
+        userData: {
+          firstName: confirmEdit.firstName,
+          lastName: confirmEdit.lastName,
+        },
+        membershipData: {
+          role: confirmEdit.role,
+          endDate: confirmEdit.endDate,
+        },
+      };
+
+      // Aggiungi subscriptionTypeId solo se il ruolo è CLIENT o se c'è un abbonamento
+      if (confirmEdit.role === "CLIENT" || confirmEdit.subscriptionTypeId) {
+        updateData.membershipData.subscriptionTypeId =
+          confirmEdit.subscriptionTypeId;
+      }
+
       const response = await fetch("/api/gym/member/update", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: selectedMember.userId,
-          userData: {
-            firstName: selectedMember.firstName,
-            lastName: selectedMember.lastName,
-          },
-          membershipData: {
-            role: selectedMember.role,
-            subscriptionTypeId: selectedMember.subscriptionTypeId,
-            endDate: selectedMember.endDate,
-          },
-        }),
+        body: JSON.stringify(updateData),
       });
       if (!response.ok) throw new Error(await response.text());
       await refetchMembers();
       setIsModalOpen(false);
+      setConfirmEdit(null);
       showToast("Membro aggiornato con successo!");
     } catch (error) {
       showToast(error.message, "error");
+      setConfirmEdit(null);
     }
   };
 
   const handleDelete = async (userId) => {
-    if (!confirm("Sei sicuro di voler rimuovere questo membro?")) return;
+    const member = members.find((m) => m.user.id === userId);
+    setConfirmDelete({
+      userId,
+      name: `${member.user.firstName} ${member.user.lastName}`,
+      email: member.user.email,
+    });
+  };
+
+  const confirmDeleteMember = async () => {
     try {
       const response = await fetch("/api/gym/member/delete", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId }),
+        body: JSON.stringify({ userId: confirmDelete.userId }),
       });
       if (!response.ok) throw new Error(await response.text());
       await refetchMembers();
+      setConfirmDelete(null);
       showToast("Membro rimosso con successo!");
     } catch (error) {
       showToast(error.message, "error");
+      setConfirmDelete(null);
     }
   };
 
   const handleAddMember = async (e) => {
     e.preventDefault();
-    const formData = new FormData(e.target);
+
+    // Validazione: cliente deve avere abbonamento
+    if (newMember.role === "CLIENT" && !newMember.subscriptionTypeId) {
+      showToast("I clienti devono avere un abbonamento", "error");
+      return;
+    }
+
+    // Mostra modal di conferma con riepilogo
+    const subscription = activeSubscriptions.find(
+      (s) => s.id === newMember.subscriptionTypeId
+    );
+
+    setConfirmAdd({
+      ...newMember,
+      subscriptionName: subscription?.name || "Nessuno",
+    });
+  };
+
+  const confirmAddMember = async () => {
     try {
+      const dataToSend = {
+        email: confirmAdd.email,
+        firstName: confirmAdd.firstName,
+        lastName: confirmAdd.lastName,
+        role: confirmAdd.role,
+        startDate: confirmAdd.startDate,
+        endDate: confirmAdd.endDate,
+      };
+
+      // Aggiungi subscriptionTypeId solo se il ruolo è CLIENT o se c'è un abbonamento
+      if (confirmAdd.role === "CLIENT" || confirmAdd.subscriptionTypeId) {
+        dataToSend.subscriptionTypeId = confirmAdd.subscriptionTypeId;
+      }
+
       const response = await fetch("/api/gym/member/add", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: formData.get("email"),
-          firstName: formData.get("firstName"),
-          lastName: formData.get("lastName"),
-          role: formData.get("role"),
-          subscriptionTypeId: formData.get("subscriptionTypeId"),
-          startDate: formData.get("startDate"),
-          endDate: formData.get("endDate"),
-        }),
+        body: JSON.stringify(dataToSend),
       });
       if (!response.ok) throw new Error(await response.text());
       await refetchMembers();
       setIsAddModalOpen(false);
+      setConfirmAdd(null);
+      setNewMember({
+        email: "",
+        firstName: "",
+        lastName: "",
+        role: "CLIENT",
+        subscriptionTypeId: "",
+        startDate: new Date().toISOString().split("T")[0],
+        endDate: "",
+      });
       showToast("Membro aggiunto! Email di onboarding inviata.");
-      e.target.reset();
     } catch (error) {
       showToast(error.message, "error");
+      setConfirmAdd(null);
     }
   };
 
@@ -202,6 +347,9 @@ export default function UtentiPage() {
                     Email
                   </th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-foreground">
+                    Ruolo
+                  </th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-foreground">
                     Abbonamento
                   </th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-foreground">
@@ -217,11 +365,14 @@ export default function UtentiPage() {
               </thead>
               <tbody className="divide-y divide-border">
                 {filteredMembers.map((member) => {
-                  const daysLeft = Math.ceil(
-                    (new Date(member.endDate) - new Date()) /
-                      (1000 * 60 * 60 * 24)
-                  );
-                  const isExpiring = daysLeft <= 7 && daysLeft >= 0;
+                  const daysLeft = member.endDate
+                    ? Math.ceil(
+                        (new Date(member.endDate) - new Date()) /
+                          (1000 * 60 * 60 * 24)
+                      )
+                    : null;
+                  const isExpiring =
+                    daysLeft !== null && daysLeft <= 7 && daysLeft >= 0;
                   return (
                     <tr
                       key={member.id}
@@ -235,19 +386,34 @@ export default function UtentiPage() {
                       <td className="px-6 py-4 text-muted-foreground">
                         {member.user.email}
                       </td>
+                      <td className="px-6 py-4">
+                        <Badge
+                          variant={
+                            member.role === "TRAINER" ? "info" : "default"
+                          }
+                        >
+                          {member.role === "TRAINER" ? "Trainer" : "Cliente"}
+                        </Badge>
+                      </td>
                       <td className="px-6 py-4 text-foreground">
-                        {member.subscriptionType.name}
+                        {member.subscriptionType?.name || "-"}
                       </td>
                       <td className="px-6 py-4">
-                        <span
-                          className={`text-sm ${
-                            isExpiring
-                              ? "text-destructive font-medium"
-                              : "text-muted-foreground"
-                          }`}
-                        >
-                          {new Date(member.endDate).toLocaleDateString("it-IT")}
-                        </span>
+                        {member.endDate ? (
+                          <span
+                            className={`text-sm ${
+                              isExpiring
+                                ? "text-destructive font-medium"
+                                : "text-muted-foreground"
+                            }`}
+                          >
+                            {formatDate(member.endDate)}
+                          </span>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">
+                            -
+                          </span>
+                        )}
                       </td>
                       <td className="px-6 py-4">
                         <Badge
@@ -321,6 +487,7 @@ export default function UtentiPage() {
                     firstName: e.target.value,
                   })
                 }
+                required
               />
               <Input
                 label="Cognome"
@@ -332,47 +499,89 @@ export default function UtentiPage() {
                     lastName: e.target.value,
                   })
                 }
+                required
               />
             </div>
+
             <Select
-              label="Abbonamento"
-              value={selectedMember.subscriptionTypeId}
-              onChange={(e) =>
-                setSelectedMember({
-                  ...selectedMember,
-                  subscriptionTypeId: e.target.value,
-                })
+              label="Ruolo"
+              value={selectedMember.role}
+              onChange={(value) =>
+                setSelectedMember({ ...selectedMember, role: value })
               }
-            >
-              {activeSubscriptions.map((sub) => (
-                <option key={sub.id} value={sub.id}>
-                  {sub.name} - {sub.durationValue}{" "}
-                  {sub.durationUnit.toLowerCase()}
-                </option>
-              ))}
-            </Select>
-            <Input
-              label="Data Scadenza"
-              type="date"
-              value={selectedMember.endDate}
-              onChange={(e) =>
-                setSelectedMember({
-                  ...selectedMember,
-                  endDate: e.target.value,
-                })
-              }
+              options={[
+                { value: "CLIENT", label: "Cliente" },
+                { value: "TRAINER", label: "Trainer" },
+              ]}
             />
+
+            {/* Abbonamento opzionale per trainer */}
+            <Select
+              label={`Abbonamento ${
+                selectedMember.role === "TRAINER" ? "(Opzionale)" : ""
+              }`}
+              value={selectedMember.subscriptionTypeId}
+              onChange={(value) =>
+                setSelectedMember({
+                  ...selectedMember,
+                  subscriptionTypeId: value,
+                })
+              }
+              options={[
+                ...(selectedMember.role === "TRAINER"
+                  ? [{ value: "", label: "Nessuno" }]
+                  : []),
+                ...activeSubscriptions.map((sub) => ({
+                  value: sub.id,
+                  label: `${sub.name} - ${formatDuration(
+                    sub.durationValue,
+                    sub.durationUnit
+                  )} (€${formatPrice(sub.price)})`,
+                })),
+              ]}
+              required={selectedMember.role === "CLIENT"}
+            />
+
+            {selectedMember.subscriptionTypeId && (
+              <div className="grid grid-cols-2 gap-4">
+                <Input
+                  label="Data Inizio"
+                  type="date"
+                  value={selectedMember.startDate}
+                  onChange={(e) =>
+                    setSelectedMember({
+                      ...selectedMember,
+                      startDate: e.target.value,
+                    })
+                  }
+                  required
+                />
+                <Input
+                  label="Data Scadenza"
+                  type="date"
+                  value={selectedMember.endDate}
+                  onChange={(e) =>
+                    setSelectedMember({
+                      ...selectedMember,
+                      endDate: e.target.value,
+                    })
+                  }
+                  required
+                />
+              </div>
+            )}
+
             <ModalFooter>
               <Button
                 type="button"
-                variant="secondary"
+                variant="outline"
                 onClick={() => setIsModalOpen(false)}
                 className="flex-1"
               >
                 Annulla
               </Button>
               <Button type="submit" className="flex-1">
-                Salva
+                Salva Modifiche
               </Button>
             </ModalFooter>
           </form>
@@ -383,53 +592,272 @@ export default function UtentiPage() {
       {isAddModalOpen && (
         <Modal
           isOpen={isAddModalOpen}
-          onClose={() => setIsAddModalOpen(false)}
+          onClose={() => {
+            setIsAddModalOpen(false);
+            setNewMember({
+              email: "",
+              firstName: "",
+              lastName: "",
+              role: "CLIENT",
+              subscriptionTypeId: "",
+              startDate: new Date().toISOString().split("T")[0],
+              endDate: "",
+            });
+          }}
           title="Aggiungi Nuovo Membro"
         >
           <form onSubmit={handleAddMember} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
-              <Input label="Nome" type="text" name="firstName" required />
-              <Input label="Cognome" type="text" name="lastName" required />
-            </div>
-            <Input label="Email" type="email" name="email" required />
-            <div className="grid grid-cols-2 gap-4">
-              <Select label="Ruolo" name="role" defaultValue="CLIENT">
-                <option value="CLIENT">Cliente</option>
-                <option value="TRAINER">Trainer</option>
-              </Select>
-              <Select label="Abbonamento" name="subscriptionTypeId" required>
-                {activeSubscriptions.map((sub) => (
-                  <option key={sub.id} value={sub.id}>
-                    {sub.name}
-                  </option>
-                ))}
-              </Select>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
               <Input
-                label="Data Inizio"
-                type="date"
-                name="startDate"
+                label="Nome"
+                type="text"
+                value={newMember.firstName}
+                onChange={(e) =>
+                  setNewMember({ ...newMember, firstName: e.target.value })
+                }
                 required
-                defaultValue={new Date().toISOString().split("T")[0]}
               />
-              <Input label="Data Fine" type="date" name="endDate" required />
+              <Input
+                label="Cognome"
+                type="text"
+                value={newMember.lastName}
+                onChange={(e) =>
+                  setNewMember({ ...newMember, lastName: e.target.value })
+                }
+                required
+              />
             </div>
+
+            <Input
+              label="Email"
+              type="email"
+              value={newMember.email}
+              onChange={(e) =>
+                setNewMember({ ...newMember, email: e.target.value })
+              }
+              required
+            />
+
+            <Select
+              label="Ruolo"
+              value={newMember.role}
+              onChange={(value) => setNewMember({ ...newMember, role: value })}
+              options={[
+                { value: "CLIENT", label: "Cliente" },
+                { value: "TRAINER", label: "Trainer" },
+              ]}
+            />
+
+            <Select
+              label={`Abbonamento ${
+                newMember.role === "TRAINER" ? "(Opzionale)" : ""
+              }`}
+              value={newMember.subscriptionTypeId}
+              onChange={(value) =>
+                setNewMember({ ...newMember, subscriptionTypeId: value })
+              }
+              options={[
+                ...(newMember.role === "TRAINER"
+                  ? [{ value: "", label: "Nessuno" }]
+                  : []),
+                ...activeSubscriptions.map((sub) => ({
+                  value: sub.id,
+                  label: `${sub.name} - ${formatDuration(
+                    sub.durationValue,
+                    sub.durationUnit
+                  )} (€${formatPrice(sub.price)})`,
+                })),
+              ]}
+              required={newMember.role === "CLIENT"}
+            />
+
+            {newMember.subscriptionTypeId && (
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  <Input
+                    label="Data Inizio"
+                    type="date"
+                    value={newMember.startDate}
+                    onChange={(e) =>
+                      setNewMember({ ...newMember, startDate: e.target.value })
+                    }
+                    required
+                  />
+                  <Input
+                    label="Data Fine (Auto-calcolata)"
+                    type="date"
+                    value={newMember.endDate}
+                    onChange={(e) =>
+                      setNewMember({ ...newMember, endDate: e.target.value })
+                    }
+                    required
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  💡 La data di fine viene calcolata automaticamente in base al
+                  tipo di abbonamento selezionato
+                </p>
+              </>
+            )}
+
             <ModalFooter>
               <Button
                 type="button"
-                variant="secondary"
-                onClick={() => setIsAddModalOpen(false)}
+                variant="outline"
+                onClick={() => {
+                  setIsAddModalOpen(false);
+                  setNewMember({
+                    email: "",
+                    firstName: "",
+                    lastName: "",
+                    role: "CLIENT",
+                    subscriptionTypeId: "",
+                    startDate: new Date().toISOString().split("T")[0],
+                    endDate: "",
+                  });
+                }}
                 className="flex-1"
               >
                 Annulla
               </Button>
               <Button type="submit" className="flex-1">
-                Aggiungi
+                Aggiungi Membro
               </Button>
             </ModalFooter>
           </form>
         </Modal>
+      )}
+
+      {/* Confirmation Modal - Add */}
+      {confirmAdd && (
+        <ConfirmationModal
+          isOpen={!!confirmAdd}
+          onClose={() => setConfirmAdd(null)}
+          onConfirm={confirmAddMember}
+          title="Conferma Aggiunta Membro"
+          message="Stai per aggiungere il seguente membro:"
+          confirmText="Aggiungi Membro"
+          cancelText="Annulla"
+          type="info"
+        >
+          <div className="mt-4 text-left bg-muted/30 rounded-lg p-4 border border-border space-y-2">
+            <div className="flex justify-between">
+              <span className="text-sm text-muted-foreground">Nome:</span>
+              <span className="text-sm font-medium text-foreground">
+                {confirmAdd.firstName} {confirmAdd.lastName}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-sm text-muted-foreground">Email:</span>
+              <span className="text-sm font-medium text-foreground">
+                {confirmAdd.email}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-sm text-muted-foreground">Ruolo:</span>
+              <span className="text-sm font-medium text-foreground">
+                {confirmAdd.role === "TRAINER" ? "Trainer" : "Cliente"}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-sm text-muted-foreground">
+                Abbonamento:
+              </span>
+              <span className="text-sm font-medium text-foreground">
+                {confirmAdd.subscriptionName}
+              </span>
+            </div>
+            {confirmAdd.subscriptionTypeId && (
+              <>
+                <div className="flex justify-between">
+                  <span className="text-sm text-muted-foreground">Inizio:</span>
+                  <span className="text-sm font-medium text-foreground">
+                    {formatDate(confirmAdd.startDate)}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-muted-foreground">
+                    Scadenza:
+                  </span>
+                  <span className="text-sm font-medium text-foreground">
+                    {formatDate(confirmAdd.endDate)}
+                  </span>
+                </div>
+              </>
+            )}
+          </div>
+          <p className="mt-3 text-xs text-muted-foreground text-center">
+            Verrà inviata un'email di onboarding all'indirizzo specificato.
+          </p>
+        </ConfirmationModal>
+      )}
+
+      {/* Confirmation Modal - Edit */}
+      {confirmEdit && (
+        <ConfirmationModal
+          isOpen={!!confirmEdit}
+          onClose={() => setConfirmEdit(null)}
+          onConfirm={confirmUpdateMember}
+          title="Conferma Modifica Membro"
+          message="Stai per modificare i dati di questo membro. Vuoi procedere?"
+          confirmText="Sì, Modifica"
+          cancelText="Annulla"
+          type="warning"
+        >
+          <div className="mt-4 text-left bg-muted/30 rounded-lg p-4 border border-border space-y-2">
+            <div className="flex justify-between">
+              <span className="text-sm text-muted-foreground">Nome:</span>
+              <span className="text-sm font-medium text-foreground">
+                {confirmEdit.firstName} {confirmEdit.lastName}
+              </span>
+            </div>
+            {confirmEdit.role !== confirmEdit.oldRole && (
+              <div className="flex justify-between items-center bg-warning/10 px-2 py-1 rounded">
+                <span className="text-sm text-muted-foreground">Ruolo:</span>
+                <span className="text-sm font-medium text-foreground">
+                  {confirmEdit.oldRole === "TRAINER" ? "Trainer" : "Cliente"} →{" "}
+                  {confirmEdit.role === "TRAINER" ? "Trainer" : "Cliente"}
+                </span>
+              </div>
+            )}
+            {confirmEdit.newSubscription !== confirmEdit.oldSubscription && (
+              <div className="flex justify-between items-center bg-warning/10 px-2 py-1 rounded">
+                <span className="text-sm text-muted-foreground">
+                  Abbonamento:
+                </span>
+                <span className="text-sm font-medium text-foreground">
+                  {confirmEdit.oldSubscription || "Nessuno"} →{" "}
+                  {confirmEdit.newSubscription || "Nessuno"}
+                </span>
+              </div>
+            )}
+          </div>
+        </ConfirmationModal>
+      )}
+
+      {/* Confirmation Modal - Delete */}
+      {confirmDelete && (
+        <ConfirmationModal
+          isOpen={!!confirmDelete}
+          onClose={() => setConfirmDelete(null)}
+          onConfirm={confirmDeleteMember}
+          title="Elimina Membro"
+          message={`Sei sicuro di voler rimuovere ${confirmDelete.name} dalla palestra?`}
+          confirmText="Sì, Elimina"
+          cancelText="Annulla"
+          type="danger"
+        >
+          <div className="mt-4 text-left bg-destructive/10 rounded-lg p-4 border border-destructive/20">
+            <p className="text-sm text-foreground">
+              <strong className="text-destructive">Attenzione:</strong> Questa
+              azione rimuoverà il membro dalla tua palestra. L'utente potrà
+              essere ri-aggiunto in futuro.
+            </p>
+            <p className="text-xs text-muted-foreground mt-2">
+              Email: {confirmDelete.email}
+            </p>
+          </div>
+        </ConfirmationModal>
       )}
     </DashboardLayout>
   );

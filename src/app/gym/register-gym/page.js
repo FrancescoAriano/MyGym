@@ -156,16 +156,29 @@ export default function RegisterGymPage() {
         </Button>
       </form>
 
-      <div className="text-center">
-        <p className="text-sm text-muted-foreground">
-          Hai già un account?{" "}
-          <Link
-            href="/login"
-            className="font-medium text-primary hover:underline"
-          >
-            Accedi qui
-          </Link>
-        </p>
+      <div>
+        <div className="text-center space-y-2">
+          <p className="text-sm text-muted-foreground">
+            Hai già un account?{" "}
+            <Link
+              href="/login"
+              className="font-medium text-primary hover:underline"
+            >
+              Accedi qui
+            </Link>
+          </p>
+        </div>
+
+        <div className="my-4 border-t  bborder-border w-60 mx-auto" />
+
+        <div className="text-center space-y-2">
+          <p className="text-sm text-muted-foreground">
+            Scopri di più su MyGym!{" "}
+            <Link href="/" className="font-medium text-primary hover:underline">
+              Torna alla Home
+            </Link>
+          </p>
+        </div>
       </div>
     </AuthLayout>
   );

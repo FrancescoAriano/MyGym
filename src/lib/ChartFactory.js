@@ -45,30 +45,72 @@ export class ChartFactory {
 
   /**
    * Crea un grafico a torta per la distribuzione dei membri per abbonamento
+   * Raggruppa abbonamenti con lo stesso nome ma durate diverse
    */
   static createMemberDistributionChart(members, subscriptions) {
-    const data = subscriptions
+    // Raggruppa subscriptions per nome
+    const groupedByName = {};
+
+    subscriptions
       .filter((s) => s.isActive)
-      .map((sub) => ({
-        name: sub.name,
-        value: members.filter((m) => m.subscriptionTypeId === sub.id).length,
-      }));
+      .forEach((sub) => {
+        if (!groupedByName[sub.name]) {
+          groupedByName[sub.name] = [];
+        }
+        groupedByName[sub.name].push(sub.id);
+      });
+
+    // Conta i membri per ogni gruppo di abbonamenti
+    const data = Object.entries(groupedByName).map(([name, subIds]) => ({
+      name,
+      value: members.filter((m) => subIds.includes(m.subscriptionTypeId))
+        .length,
+    }));
 
     return { type: "pie", data, title: "Distribuzione Membri" };
   }
 
   /**
    * Crea un grafico a barre per le entrate potenziali
+   * Raggruppa abbonamenti con lo stesso nome ma durate diverse
    */
   static createRevenueChart(members, subscriptions) {
-    const data = subscriptions
+    // Raggruppa subscriptions per nome
+    const groupedByName = {};
+
+    subscriptions
       .filter((s) => s.isActive)
-      .map((sub) => ({
-        name: sub.name,
-        revenue:
-          members.filter((m) => m.subscriptionTypeId === sub.id).length *
-          Number.parseFloat(sub.price),
-      }));
+      .forEach((sub) => {
+        if (!groupedByName[sub.name]) {
+          groupedByName[sub.name] = {
+            ids: [],
+            prices: [],
+          };
+        }
+        groupedByName[sub.name].ids.push(sub.id);
+        groupedByName[sub.name].prices.push(Number.parseFloat(sub.price));
+      });
+
+    // Calcola le entrate per ogni gruppo
+    const data = Object.entries(groupedByName).map(([name, group]) => {
+      const membersInGroup = members.filter((m) =>
+        group.ids.includes(m.subscriptionTypeId)
+      );
+
+      // Calcola le entrate totali per questo gruppo
+      let totalRevenue = 0;
+      membersInGroup.forEach((member) => {
+        const subIndex = group.ids.indexOf(member.subscriptionTypeId);
+        if (subIndex !== -1) {
+          totalRevenue += group.prices[subIndex];
+        }
+      });
+
+      return {
+        name,
+        revenue: totalRevenue,
+      };
+    });
 
     return {
       type: "bar",

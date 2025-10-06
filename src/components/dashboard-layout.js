@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useTheme } from "next-themes";
 import { signOut } from "next-auth/react";
@@ -17,9 +17,14 @@ import {
   HiArrowRightOnRectangle,
   HiBars3,
   HiXMark,
+  HiScale,
+  HiChartBar,
 } from "react-icons/hi2";
+import { FaPencilRuler } from "react-icons/fa";
 
-const navigation = [
+import { IoFastFoodSharp } from "react-icons/io5";
+
+const gymNavigation = [
   { name: "Home", href: "/gym/dashboard/home", icon: HiHome },
   { name: "Utenti", href: "/gym/dashboard/utenti", icon: HiUserGroup },
   {
@@ -34,9 +39,15 @@ const navigation = [
     disabled: true,
   },
   {
+    name: "Check",
+    href: "/gym/dashboard/check",
+    icon: FaPencilRuler,
+    disabled: true,
+  },
+  {
     name: "Diete",
     href: "/gym/dashboard/diete",
-    icon: HiBeaker,
+    icon: IoFastFoodSharp,
     disabled: true,
   },
   {
@@ -47,10 +58,62 @@ const navigation = [
   },
 ];
 
-export function DashboardLayout({ children }) {
+const userNavigation = [
+  {
+    name: "Panoramica",
+    href: "/user/dashboard?tab=overview",
+    icon: HiChartBar,
+    matchTab: "overview",
+  },
+  {
+    name: "Tracciamento Peso",
+    href: "/user/dashboard?tab=weight",
+    icon: HiScale,
+    matchTab: "weight",
+  },
+  {
+    name: "Check",
+    href: "/user/dashboard/check",
+    icon: FaPencilRuler,
+    disabled: true,
+  },
+  {
+    name: "Commenti",
+    href: "/user/dashboard/commenti",
+    icon: HiChatBubbleLeftRight,
+    disabled: true,
+  },
+  {
+    name: "Schede",
+    href: "/user/dashboard/schede",
+    icon: HiDocumentText,
+    disabled: true,
+  },
+  {
+    name: "Diete",
+    href: "/user/dashboard/diete",
+    icon: IoFastFoodSharp,
+    disabled: true,
+  },
+];
+
+// Trainer usa la stessa navigazione degli utenti (stessa dashboard)
+const trainerNavigation = userNavigation;
+
+export function DashboardLayout({ children, userType = "gym" }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const currentTab = searchParams.get("tab");
   const { theme, setTheme } = useTheme();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Seleziona la navigation appropriata in base al tipo di utente
+  const navigation =
+    userType === "user"
+      ? userNavigation
+      : userType === "trainer"
+      ? trainerNavigation
+      : gymNavigation;
 
   return (
     <div className="min-h-dvh bg-background">
@@ -64,7 +127,11 @@ export function DashboardLayout({ children }) {
           {/* Navigation */}
           <nav className="flex-1 space-y-2 p-4 overflow-y-auto">
             {navigation.map((item) => {
-              const isActive = pathname === item.href;
+              // Per user/trainer, controlla anche il tab query param
+              const isActive = item.matchTab
+                ? pathname === item.href.split("?")[0] &&
+                  currentTab === item.matchTab
+                : pathname === item.href;
               const Icon = item.icon;
               return (
                 <Link

@@ -1,15 +1,23 @@
 "use client";
 
+import { useState } from "react";
 import { Card } from "@/components/ui/Card";
-import { HiChartBar, HiTrendingUp, HiTrendingDown } from "react-icons/hi2";
+import { Select } from "@/components/ui/Select";
+import { HiChartBar } from "react-icons/hi2";
+import { HiTrendingUp, HiTrendingDown } from "react-icons/hi";
 
 /**
  * Card per visualizzare statistiche sul peso (medie settimanali/mensili/annuali)
  * Pattern GRASP: Information Expert - gestisce il calcolo e visualizzazione statistiche
  * @param {object[]} weightEntries - Array di misurazioni peso
- * @param {string} period - Periodo da visualizzare: 'week' | 'month' | 'year'
+ * @param {string} initialPeriod - Periodo iniziale da visualizzare: 'week' | 'month' | 'year'
  */
-export function WeightStatsCard({ weightEntries = [], period = "month" }) {
+export function WeightStatsCard({
+  weightEntries = [],
+  initialPeriod = "month",
+}) {
+  const [period, setPeriod] = useState(initialPeriod);
+
   const calculateStats = () => {
     if (!weightEntries || weightEntries.length === 0) {
       return {
@@ -100,10 +108,22 @@ export function WeightStatsCard({ weightEntries = [], period = "month" }) {
   return (
     <Card>
       <div className="p-6">
-        <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
-          <HiChartBar className="h-5 w-5 text-primary" />
-          Statistiche {periodLabels[period]}
-        </h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+            <HiChartBar className="h-5 w-5 text-primary" />
+            Statistiche
+          </h3>
+          <Select
+            value={period}
+            onChange={(value) => setPeriod(value)}
+            options={[
+              { value: "week", label: "Settimana" },
+              { value: "month", label: "Mese" },
+              { value: "year", label: "Anno" },
+            ]}
+            className="w-32"
+          />
+        </div>
 
         {stats.entries === 0 ? (
           <p className="text-muted-foreground">

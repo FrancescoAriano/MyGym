@@ -16,6 +16,7 @@ export function Button({
     secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
     destructive:
       "bg-destructive text-destructive-foreground hover:bg-destructive/90",
+    warning: "bg-chart-4 text-white hover:bg-chart-4/90",
     outline:
       "border border-border bg-transparent hover:bg-muted text-foreground",
     ghost: "hover:bg-muted text-foreground",

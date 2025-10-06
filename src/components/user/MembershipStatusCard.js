@@ -2,19 +2,22 @@
 
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { formatPrice, formatDate } from "@/lib/formatters";
 import {
   HiCalendar,
   HiCreditCard,
   HiCheckCircle,
   HiExclamationCircle,
+  HiUser,
 } from "react-icons/hi2";
 
 /**
  * Card per visualizzare lo stato dell'abbonamento utente
  * Pattern GRASP: Information Expert - gestisce la visualizzazione dei dati abbonamento
  * @param {object} membership - Dati dell'abbonamento {type, status, startDate, endDate, price}
+ * @param {string} userName - Nome dell'utente
  */
-export function MembershipStatusCard({ membership }) {
+export function MembershipStatusCard({ membership, userName }) {
   if (!membership) {
     return (
       <Card>
@@ -56,6 +59,18 @@ export function MembershipStatusCard({ membership }) {
         </div>
 
         <div className="space-y-3">
+          {userName && (
+            <div>
+              <p className="text-sm text-muted-foreground flex items-center gap-1">
+                <HiUser className="h-4 w-4" />
+                Account
+              </p>
+              <p className="text-base font-medium text-foreground">
+                {userName}
+              </p>
+            </div>
+          )}
+
           <div>
             <p className="text-sm text-muted-foreground">Tipo abbonamento</p>
             <p className="text-base font-medium text-foreground">{type}</p>
@@ -68,7 +83,7 @@ export function MembershipStatusCard({ membership }) {
                 Data inizio
               </p>
               <p className="text-base text-foreground">
-                {new Date(startDate).toLocaleDateString("it-IT")}
+                {formatDate(startDate)}
               </p>
             </div>
           )}
@@ -79,9 +94,7 @@ export function MembershipStatusCard({ membership }) {
                 <HiCalendar className="h-4 w-4" />
                 Data scadenza
               </p>
-              <p className="text-base text-foreground">
-                {new Date(endDate).toLocaleDateString("it-IT")}
-              </p>
+              <p className="text-base text-foreground">{formatDate(endDate)}</p>
               {isExpiringSoon && isActive && (
                 <p className="text-sm text-warning flex items-center gap-1 mt-1">
                   <HiExclamationCircle className="h-4 w-4" />
@@ -94,7 +107,9 @@ export function MembershipStatusCard({ membership }) {
           {price && (
             <div>
               <p className="text-sm text-muted-foreground">Costo</p>
-              <p className="text-xl font-bold text-primary">€{price}/mese</p>
+              <p className="text-xl font-bold text-primary">
+                €{formatPrice(price)}/mese
+              </p>
             </div>
           )}
         </div>

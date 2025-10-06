@@ -6,11 +6,8 @@ import { useEffect, useState } from "react";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import {
-  WeightStatsCard,
-  WeightChart,
-  WeightHistoryTable,
-} from "@/components/weight";
+import { DashboardHeader } from "@/components/dashboard";
+import { WeightChart, WeightHistoryTable } from "@/components/weight";
 import { UserDashboardSkeleton } from "@/components/ui";
 import { useWeightData } from "@/hooks/useWeightData";
 import { HiArrowLeft, HiUser, HiScale } from "react-icons/hi2";

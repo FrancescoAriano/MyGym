@@ -30,11 +30,11 @@ export function Modal({ isOpen, onClose, title, children, size = "md" }) {
       onClick={onClose}
     >
       <div
-        className={`bg-card rounded-2xl border border-border shadow-2xl w-full ${sizes[size]} animate-in zoom-in-95 duration-200`}
+        className={`bg-card rounded-2xl border border-border shadow-2xl w-full ${sizes[size]} max-h-[90vh] flex flex-col animate-in zoom-in-95 duration-200`}
         onClick={(e) => e.stopPropagation()}
       >
         {title && (
-          <div className="flex items-center justify-between p-6 border-b border-border">
+          <div className="flex items-center justify-between p-6 border-b border-border flex-shrink-0">
             <h2 className="text-xl font-bold text-foreground">{title}</h2>
             <button
               onClick={onClose}
@@ -44,7 +44,7 @@ export function Modal({ isOpen, onClose, title, children, size = "md" }) {
             </button>
           </div>
         )}
-        <div className="p-6">{children}</div>
+        <div className="p-6 overflow-y-auto">{children}</div>
       </div>
     </div>
   );

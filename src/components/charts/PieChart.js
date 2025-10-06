@@ -47,8 +47,41 @@ export function PieChart({
     );
   }
 
+  const renderCustomizedLabel = ({
+    cx,
+    cy,
+    midAngle,
+    innerRadius,
+    outerRadius,
+    percent,
+    name,
+  }) => {
+    const RADIAN = Math.PI / 180;
+    // Calcola la posizione della label leggermente fuori dal grafico
+    const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+    const radiusForLabel = outerRadius + 15; // Sposta la label più all'esterno
+    const x = cx + radiusForLabel * Math.cos(-midAngle * RADIAN);
+    const y = cy + radiusForLabel * Math.sin(-midAngle * RADIAN);
+
+    const labelText = showPercentage // Usa la tua logica qui
+      ? `${name} ${(percent * 100).toFixed(0)}%`
+      : name;
+
+    return (
+      <text
+        x={x}
+        y={y}
+        fill="var(--primary)" // <-- ECCO LA SOLUZIONE!
+        textAnchor={x > cx ? "start" : "end"} // Allinea il testo correttamente
+        dominantBaseline="central"
+        fontSize={14} // Puoi aggiungere anche altre proprietà di stile
+      >
+        {labelText}
+      </text>
+    );
+  };
   return (
-    <div className="bg-card rounded-2xl p-6 shadow-md hover:scale-105 transition-transform duration-300">
+    <div className="bg-card rounded-2xl p-6 shadow-md">
       <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
         <HiChartBar className="h-5 w-5 text-primary" />
         {title}
@@ -60,14 +93,8 @@ export function PieChart({
             cx="50%"
             cy="50%"
             labelLine={false}
-            label={
-              showPercentage
-                ? ({ name, percent }) =>
-                    `${name} ${(percent * 100).toFixed(0)}%`
-                : ({ name }) => name
-            }
+            label={renderCustomizedLabel}
             outerRadius={80}
-            fill="#8884d8"
             dataKey={dataKey}
           >
             {data.map((entry, index) => (
@@ -77,13 +104,6 @@ export function PieChart({
               />
             ))}
           </Pie>
-          <Tooltip
-            contentStyle={{
-              backgroundColor: "hsl(var(--card))",
-              border: "1px solid hsl(var(--border))",
-              borderRadius: "0.5rem",
-            }}
-          />
         </RechartsPie>
       </ResponsiveContainer>
     </div>

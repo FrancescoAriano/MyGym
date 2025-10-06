@@ -41,7 +41,7 @@ export function MembershipChart({
   const isDark = theme === "dark";
 
   return (
-    <div className="bg-card rounded-2xl p-6 shadow-md hover:scale-105 transition-transform duration-300">
+    <div className="bg-card rounded-2xl p-6 shadow-md">
       <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
         <HiChartBar className="h-5 w-5 text-primary" />
         {title}
@@ -60,10 +60,6 @@ export function MembershipChart({
             stroke={isDark ? "#9ca3af" : "#6b7280"}
             style={{ fontSize: "0.875rem" }}
           />
-          <YAxis
-            stroke={isDark ? "#9ca3af" : "#6b7280"}
-            style={{ fontSize: "0.875rem" }}
-          />
           <Tooltip
             contentStyle={{
               backgroundColor: "hsl(var(--card))",
@@ -75,9 +71,14 @@ export function MembershipChart({
           <Line
             type="monotone"
             dataKey="members"
-            stroke="hsl(var(--primary))"
+            stroke="var(--primary)"
             strokeWidth={2}
-            dot={{ fill: "hsl(var(--primary))", r: 4 }}
+            name="Membri"
+            dot={{
+              stroke: "var(--primary)",
+              fill: "var(--background)",
+              r: 4,
+            }}
             activeDot={{ r: 6 }}
           />
         </RechartsLine>
