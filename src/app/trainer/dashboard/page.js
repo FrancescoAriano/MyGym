@@ -2,7 +2,7 @@
 
 import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -31,7 +31,16 @@ import {
  * Dashboard per i trainer
  * Pattern GRASP: Controller - coordina la visualizzazione clienti e palestre
  */
-export default function TrainerDashboardPage() {
+
+export default function TrainerDashboardPageWrapper(props) {
+  return (
+    <Suspense>
+      <TrainerDashboardPage {...props} />
+    </Suspense>
+  );
+}
+
+function TrainerDashboardPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
