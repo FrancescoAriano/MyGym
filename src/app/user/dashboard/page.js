@@ -3,7 +3,7 @@
 
 import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -30,7 +30,15 @@ import {
   HiBuildingOffice2,
 } from "react-icons/hi2";
 
-export default function UserDashboardPage() {
+export default function UserDashboardPageWrapper(props) {
+  return (
+    <Suspense>
+      <UserDashboardPage {...props} />
+    </Suspense>
+  );
+}
+
+function UserDashboardPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
